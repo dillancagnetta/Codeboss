@@ -2,10 +2,10 @@
 echo Executing after success scripts on branch $TRAVIS_BRANCH
 echo Triggering Nuget package build
 
-cd src/Convey/src/Convey
-dotnet pack -c release /p:PackageVersion=0.4.$TRAVIS_BUILD_NUMBER --no-restore -o .
+cd src/Codeboss/src/Codeboss
+dotnet pack -c release /p:PackageVersion=0.0.$TRAVIS_BUILD_NUMBER --no-restore -o .
 
-echo Uploading Convey package to Nuget using branch $TRAVIS_BRANCH
+echo Uploading Codeboss package to Nuget using branch $TRAVIS_BRANCH
 
 case "$TRAVIS_BRANCH" in
   "master")
