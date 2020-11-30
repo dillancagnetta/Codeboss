@@ -2,7 +2,7 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{F218F777-B2A2-43D4-8541-F3DD10D83CE0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Codeboss", "src\Codeboss\src\Convey\Codeboss.csproj", "{3340BE6F-3979-45BD-AD53-3112104278C3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Codeboss", "src\Codeboss\src\Codeboss\Codeboss.csproj", "{3340BE6F-3979-45BD-AD53-3112104278C3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
