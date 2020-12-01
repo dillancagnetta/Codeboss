@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Description>Codeboss</Description>
     <Authors>Codeboss.co</Authors>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net5.0</TargetFramework>
     <LangVersion>Latest</LangVersion>
     <AssemblyName>Codeboss</AssemblyName>
     <Title>Codeboss</Title>
