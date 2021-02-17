@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>CodeBoss.Extensions</Description>
+    <Authors>CodeBoss.co</Authors>
+    <TargetFramework>net5.0</TargetFramework>
+    <LangVersion>Latest</LangVersion>
+    <AssemblyName>CodeBoss.Extensions</AssemblyName>
+    <Title>CodeBoss.Extensions</Title>
+    <PackageId>CodeBoss.Extensions</PackageId>
+    <PackageTags>CodeBoss.Extensions</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Codeboss\src\Codeboss\Codeboss.csproj" />
+  </ItemGroup>
+
+</Project>
