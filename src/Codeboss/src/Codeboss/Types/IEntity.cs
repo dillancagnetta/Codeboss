@@ -1,7 +1,7 @@
 ﻿namespace Codeboss.Types
 {
-    public interface IEntity<out T>
+    public interface IEntity<out TPrimaryKey>
     {
-        T Id { get; }
+        TPrimaryKey Id { get; }
     }
 }
