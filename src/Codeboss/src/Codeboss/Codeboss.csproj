@@ -1,14 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Codeboss</Description>
-    <Authors>Codeboss.co</Authors>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <Description>CodeBoss</Description>
+    <Authors>CodeBoss.co</Authors>
+    <TargetFramework>net5.0</TargetFramework>
     <LangVersion>Latest</LangVersion>
-    <AssemblyName>Codeboss</AssemblyName>
-    <Title>Codeboss</Title>
-    <PackageId>Codeboss</PackageId>
-    <PackageTags>Codeboss</PackageTags>
+    <AssemblyName>CodeBoss</AssemblyName>
+    <Title>CodeBoss</Title>
+    <PackageId>CodeBoss</PackageId>
+    <PackageTags>CodeBoss</PackageTags>
   </PropertyGroup> 
   
 </Project>
