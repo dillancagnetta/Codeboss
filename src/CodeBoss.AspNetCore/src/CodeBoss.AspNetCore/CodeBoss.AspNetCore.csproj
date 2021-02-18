@@ -9,6 +9,7 @@
     <Title>CodeBoss.AspNetCore</Title>
     <PackageId>CodeBoss.AspNetCore</PackageId>
     <PackageTags>CodeBoss.AspNetCore</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>

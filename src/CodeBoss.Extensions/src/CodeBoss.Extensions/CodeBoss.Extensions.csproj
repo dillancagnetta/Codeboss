@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <Description>CodeBoss.Extensions</Description>
@@ -9,6 +9,7 @@
     <Title>CodeBoss.Extensions</Title>
     <PackageId>CodeBoss.Extensions</PackageId>
     <PackageTags>CodeBoss.Extensions</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>

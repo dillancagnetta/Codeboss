@@ -9,6 +9,7 @@
     <Title>CodeBoss</Title>
     <PackageId>CodeBoss</PackageId>
     <PackageTags>CodeBoss</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup> 
   
 </Project>
