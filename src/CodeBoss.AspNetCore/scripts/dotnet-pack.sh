@@ -2,7 +2,7 @@
 echo Executing after success scripts on branch $TRAVIS_BRANCH
 echo Triggering Nuget package build
 
-cd src/Codeboss.AspNetCore/src/Codeboss.AspNetCore
+cd src/CodeBoss.AspNetCore/src/CodeBoss.AspNetCore
 dotnet pack -c release /p:PackageVersion=0.0.$TRAVIS_BUILD_NUMBER --no-restore -o .
 
 echo Uploading Codeboss.AspNetCore package to Nuget using branch $TRAVIS_BRANCH
