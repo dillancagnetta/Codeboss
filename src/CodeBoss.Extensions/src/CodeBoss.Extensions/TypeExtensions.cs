@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace CodeBoss.Extensions
 {
-    public static partial class Extentions
+    public static partial class Extensions
     {
         public static string Name(this Type type) => type.Name;
 

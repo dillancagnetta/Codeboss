@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Codeboss\src\Codeboss\Codeboss.csproj" />
+    <ProjectReference Include="..\..\..\Codeboss\src\Codeboss\Codeboss.csproj" />
   </ItemGroup>
 
 </Project>

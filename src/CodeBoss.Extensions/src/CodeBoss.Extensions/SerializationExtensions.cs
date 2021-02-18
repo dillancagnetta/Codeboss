@@ -1,5 +1,5 @@
-﻿using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
+﻿using System;
+using System.Text.Json;
 
 // https://dejanstojanovic.net/aspnet/2018/may/using-idistributedcache-in-net-core-just-got-a-lot-easier/
 namespace CodeBoss.Extensions
@@ -10,22 +10,14 @@ namespace CodeBoss.Extensions
         {
             if (obj == null) return null;
 
-            BinaryFormatter binaryFormatter = new BinaryFormatter();
-            using (MemoryStream memoryStream = new MemoryStream())
-            {
-                binaryFormatter.Serialize(memoryStream, obj);
-                return memoryStream.ToArray();
-            }
+            return JsonSerializer.SerializeToUtf8Bytes(obj);
         }
         public static T FromByteArray<T>(this byte[] byteArray) where T : class
         {
             if (byteArray == null) return default;
 
-            BinaryFormatter binaryFormatter = new BinaryFormatter();
-            using (MemoryStream memoryStream = new MemoryStream(byteArray))
-            {
-                return binaryFormatter.Deserialize(memoryStream) as T;
-            }
+            var readOnlySpan = new ReadOnlySpan<byte>(byteArray);
+            return JsonSerializer.Deserialize<T>(readOnlySpan);
         }
 
     }

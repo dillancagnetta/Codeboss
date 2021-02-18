@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using CodeBoss.Extensions;
 
 namespace CodeBoss.AspNetCore
 {

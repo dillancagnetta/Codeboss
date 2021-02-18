@@ -5,7 +5,7 @@ using Codeboss;
 
 namespace CodeBoss.Extensions
 {
-    public static partial class Extentions
+    public static partial class Extensions
     {
         /// <summary>
         /// Indicates whether this string is null or an System.String.Empty string.
