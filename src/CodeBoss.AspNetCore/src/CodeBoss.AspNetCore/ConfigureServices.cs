@@ -13,7 +13,7 @@ namespace CodeBoss.AspNetCore
             services.TryAddSingleton<IHttpContextAccessor, HttpContextAccessor>();
 
             services.AddSingleton<ICurrentPrincipalAccessor, HttpContextCurrentPrincipalAccessor>();
-            services.AddSingleton<ICurrentUser, TCurrentUser>();
+            services.AddScoped<ICurrentUser, TCurrentUser>();
         }
     }
 }
