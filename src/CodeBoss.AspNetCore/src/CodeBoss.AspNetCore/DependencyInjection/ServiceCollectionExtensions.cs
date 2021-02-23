@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
@@ -7,6 +8,9 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace CodeBoss.AspNetCore.DependencyInjection
 {
     // https://stackoverflow.com/questions/39174989/how-to-register-multiple-implementations-of-the-same-interface-in-asp-net-core
+    /// <summary>
+    /// Registers all implementations of the same interface
+    /// </summary>
     public static class ServiceCollectionExtensions
     {
         public static IServiceCollection RegisterAllTypes<T>(
@@ -18,6 +22,38 @@ namespace CodeBoss.AspNetCore.DependencyInjection
             foreach (var type in typesFromAssemblies)
             {
                 services.Add(new ServiceDescriptor(typeof(T), type, lifetime));
+            }
+
+            return services;
+        }
+
+        /// <summary>
+        /// Registers all implementations of the same interface
+        /// </summary>
+        public static IServiceCollection RegisterAllTypes(
+            this IServiceCollection services,
+            Type registrationType,
+            Assembly[] assemblies,
+            Func<TypeInfo, bool> predicate = null,
+            ServiceLifetime lifetime = ServiceLifetime.Transient)
+        {
+            IEnumerable<TypeInfo> typesFromAssemblies = new TypeInfo[]{};
+            if (predicate != null)
+            {
+                typesFromAssemblies = assemblies
+                    .SelectMany(a => a.DefinedTypes
+                        .Where(x => x.GetInterfaces().Contains(registrationType) && predicate(x)));
+            }
+            else
+            {
+                typesFromAssemblies = assemblies
+                    .SelectMany(a => a.DefinedTypes
+                        .Where(x => x.GetInterfaces().Contains(registrationType)));
+            }
+            
+            foreach(var type in typesFromAssemblies)
+            {
+                services.Add(new ServiceDescriptor(registrationType, type, lifetime));
             }
 
             return services;

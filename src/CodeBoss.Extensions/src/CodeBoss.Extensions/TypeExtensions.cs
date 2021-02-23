@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 
 namespace CodeBoss.Extensions
@@ -18,6 +20,12 @@ namespace CodeBoss.Extensions
         }
 
         public static string ToQueueName(this Type type) => ToSnakeCase(type, 1);
+
+        public static bool HasAttribute(this Type type, Type attributeType)
+        {
+            var attributes = type.GetTypeInfo().GetCustomAttributes(attributeType, false);
+            return attributes.Any();
+        }
 
     }
 }
