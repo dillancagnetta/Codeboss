@@ -21,7 +21,7 @@ namespace CodeBoss.CQRS.Queries
             // ReSharper disable once PossibleNullReferenceException
             return await (Task<TResult>)handlerType
                 .GetMethod(nameof(IQueryHandler<IQuery<TResult>, TResult>.HandleAsync))?
-                .Invoke(handler, new object[] { query });
+                .Invoke(handler, new object[] { query, cancellationToken });
         }
 
         public async Task<TResult> QueryAsync<TQuery, TResult>(TQuery query, CancellationToken cancellationToken = default) where TQuery : class, IQuery<TResult>

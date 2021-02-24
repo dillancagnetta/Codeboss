@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,38 +21,6 @@ namespace CodeBoss.AspNetCore.DependencyInjection
             foreach (var type in typesFromAssemblies)
             {
                 services.Add(new ServiceDescriptor(typeof(T), type, lifetime));
-            }
-
-            return services;
-        }
-
-        /// <summary>
-        /// Registers all implementations of the same interface
-        /// </summary>
-        public static IServiceCollection RegisterAllTypes(
-            this IServiceCollection services,
-            Type registrationType,
-            Assembly[] assemblies,
-            Func<TypeInfo, bool> predicate = null,
-            ServiceLifetime lifetime = ServiceLifetime.Transient)
-        {
-            IEnumerable<TypeInfo> typesFromAssemblies = new TypeInfo[]{};
-            if (predicate != null)
-            {
-                typesFromAssemblies = assemblies
-                    .SelectMany(a => a.DefinedTypes
-                        .Where(x => x.GetInterfaces().Contains(registrationType) && predicate(x)));
-            }
-            else
-            {
-                typesFromAssemblies = assemblies
-                    .SelectMany(a => a.DefinedTypes
-                        .Where(x => x.GetInterfaces().Contains(registrationType)));
-            }
-            
-            foreach(var type in typesFromAssemblies)
-            {
-                services.Add(new ServiceDescriptor(registrationType, type, lifetime));
             }
 
             return services;
