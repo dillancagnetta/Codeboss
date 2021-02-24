@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Reflection;
 using Codeboss.Types;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -7,7 +6,7 @@ namespace CodeBoss.CQRS.Queries
 {
     public static class ConfigureServices
     {
-        public static IServiceCollection AddQueryHandlers(this IServiceCollection services, Assembly assembly)
+        public static IServiceCollection AddQueryHandlers(this IServiceCollection services)
         {
             services.Scan(s =>
                 s.FromAssemblies(AppDomain.CurrentDomain.GetAssemblies())
