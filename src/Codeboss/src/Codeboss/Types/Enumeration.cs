@@ -8,7 +8,7 @@ namespace Codeboss.Types
     }
 
     public class Enumeration<TEnumeration, TType> : IEnumeration<TType> 
-        where TEnumeration : class, new()
+        where TEnumeration : class
         where TType: class
     {
         public TType Value { get; set; }
