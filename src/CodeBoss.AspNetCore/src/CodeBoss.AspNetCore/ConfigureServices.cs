@@ -8,12 +8,20 @@ namespace CodeBoss.AspNetCore
 {
     public static class ConfigureServices
     {
-        public static void AddAspNetCurrentUser<TCurrentUser>(this IServiceCollection services) where TCurrentUser : class, ICurrentUser
+        /// <summary>
+        /// Registers a AspNet Current User with required Http Context accessors
+        /// </summary>
+        /// <typeparam name="TCurrentUser">Interface</typeparam>
+        /// <typeparam name="TCurrentUserImp">Implementation</typeparam>
+        /// <param name="services"></param>
+        public static void AddAspNetCurrentUser<TCurrentUser, TCurrentUserImp>(this IServiceCollection services)
+            where TCurrentUser : class, ICurrentUser
+            where TCurrentUserImp : class, TCurrentUser
         {
             services.TryAddSingleton<IHttpContextAccessor, HttpContextAccessor>();
 
             services.AddSingleton<ICurrentPrincipalAccessor, HttpContextCurrentPrincipalAccessor>();
-            services.AddScoped<ICurrentUser, TCurrentUser>();
+            services.AddScoped<TCurrentUser, TCurrentUserImp>();
         }
     }
 }
