@@ -18,17 +18,17 @@ namespace CodeBoss.AspNetCore.Startup
 
         public int OrderNumber { get; } = -1;
 
-        public Task InitializeAsync()
+        public async Task InitializeAsync()
         {
             _logger.LogInformation($"Startup Initializer found: '{_initializers.Count()}', initializers to run.");
 
             foreach(var initializer in _initializers.OrderBy(x => x.OrderNumber))
             {
                 // Returns the Task i.e. does not await the result
-                return initializer.InitializeAsync();
+                _logger.LogInformation($"\t - Running Initializer: '{initializer.GetType().Name}'.");
+                await initializer.InitializeAsync();
+                _logger.LogInformation($"\t - Completed Initializer: '{initializer.GetType().Name}'.");
             }
-
-            return Task.CompletedTask;
         }
     }
 }

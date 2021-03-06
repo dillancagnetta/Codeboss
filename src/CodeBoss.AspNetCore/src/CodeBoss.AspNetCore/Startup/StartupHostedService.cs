@@ -10,7 +10,7 @@ namespace CodeBoss.AspNetCore.Startup
 
         public StartupHostedService(IStartupInitializer startupInitializer) => _startupInitializer = startupInitializer;
 
-        public Task StartAsync(CancellationToken cancellationToken) => _startupInitializer?.InitializeAsync() ?? Task.CompletedTask;
+        public async Task StartAsync(CancellationToken cancellationToken) => await _startupInitializer.InitializeAsync();
         public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }
