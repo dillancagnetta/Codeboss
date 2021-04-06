@@ -27,7 +27,7 @@ namespace CodeBoss.AspNetCore
         }
 
 
-        public static IServiceCollection AddCodeBossDateTime(IServiceCollection services, IConfiguration configuration)
+        public static IServiceCollection AddCodeBossDateTime(this IServiceCollection services, IConfiguration configuration)
         {
             services.Configure<DateTimeOptions>(configuration.GetSection(nameof(DateTimeOptions)));
             services.AddTransient<IDateTimeProvider, CodeBossDateTimeProvider>();
