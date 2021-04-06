@@ -1,8 +1,10 @@
-﻿using CodeBoss.AspNetCore.Security;
+﻿using CodeBoss.AspNetCore.CbDateTime;
+using CodeBoss.AspNetCore.Security;
 using Codeboss.Types;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Configuration;
 
 namespace CodeBoss.AspNetCore
 {
@@ -22,6 +24,14 @@ namespace CodeBoss.AspNetCore
 
             services.AddSingleton<ICurrentPrincipalAccessor, HttpContextCurrentPrincipalAccessor>();
             services.AddScoped<TCurrentUser, TCurrentUserImp>();
+        }
+
+
+        public static IServiceCollection AddCodeBossDateTime(IServiceCollection services, IConfiguration configuration)
+        {
+            services.Configure<DateTimeOptions>(configuration.GetSection(nameof(DateTimeOptions)));
+            services.AddTransient<IDateTimeProvider, CodeBossDateTimeProvider>();
+            return services;
         }
     }
 }
