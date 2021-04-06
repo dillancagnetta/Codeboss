@@ -34,8 +34,8 @@ namespace CodeBoss.AspNetCore.CbDateTime
         public DateTime Now => TimeZoneInfo.ConvertTime(DateTime.UtcNow, TimeZoneInfo);
 
         /// <summary>
-        /// Converts the local date time to rock date time.
-        /// Use this to convert a local datetime (for example, the datetime of a file stored on the server) to the Rock OrgTimeZone
+        /// Converts the local date time to code boss date time.
+        /// Use this to convert a local datetime (for example, the datetime of a file stored on the server) to the CodeBoss TimeZone
         /// </summary>
         /// <param name="localDateTime">The local date time.</param>
         /// <returns></returns>
@@ -43,6 +43,11 @@ namespace CodeBoss.AspNetCore.CbDateTime
         {
             return TimeZoneInfo.ConvertTime(localDateTime, TimeZoneInfo);
         }
+
+        /// <summary>
+        /// Gets UTC datetime to DateTime based on the TimeZone
+        /// </summary>
+        public DateTime ConvertFromUtc(DateTime utcDateTime) => TimeZoneInfo.ConvertTime(utcDateTime, TimeZoneInfo);
 
         /// <summary>
         /// Gets the Date of which Sunday is associated with the specified Date/Time, based on what the First Day Of Week is defined as.
