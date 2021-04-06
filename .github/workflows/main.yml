@@ -30,4 +30,7 @@ jobs:
 
       # Runs a single command using the runners shell
       - name: Run pack.sh script
-        run: ./scripts/pack.sh
+        run: |
+          chmod -R a+x scripts
+          chmod -R a+x src
+          ./scripts/pack.sh
