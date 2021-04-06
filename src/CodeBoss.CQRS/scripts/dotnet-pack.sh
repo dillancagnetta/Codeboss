@@ -1,13 +1,13 @@
 #!/bin/bash
-echo Executing after success scripts on branch $TRAVIS_BRANCH
+echo Executing after success scripts on branch ${GITHUB_REF##*/}
 echo Triggering Nuget package build
 
 cd src/CodeBoss.CQRS/src/CodeBoss.CQRS
-dotnet pack -c release /p:PackageVersion=0.0.$TRAVIS_BUILD_NUMBER --no-restore -o .
+dotnet pack -c release /p:PackageVersion=0.0.$GITHUB_RUN_NUMBER --no-restore -o .
 
-echo Uploading Codeboss.CQRS package to Nuget using branch $TRAVIS_BRANCH
+echo Uploading Codeboss.CQRS package to Nuget using branch ${GITHUB_REF##*/}
 
-case "$TRAVIS_BRANCH" in
+case "${GITHUB_REF##*/}" in
   "master")
     dotnet nuget push *.nupkg -k $NUGET_API_KEY -s https://api.nuget.org/v3/index.json
     ;;
