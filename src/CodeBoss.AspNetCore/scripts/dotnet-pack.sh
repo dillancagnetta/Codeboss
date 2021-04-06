@@ -3,7 +3,7 @@ echo Executing after success scripts on branch ${GITHUB_REF##*/}
 echo Triggering Nuget package build
 
 cd src/CodeBoss.AspNetCore/src/CodeBoss.AspNetCore
-dotnet pack -c release /p:PackageVersion=0.0.$GITHUB_RUN_NUMBER --no-restore -o .
+dotnet pack -c release /p:PackageVersion=0.1.$GITHUB_RUN_NUMBER --no-restore -o .
 
 echo Uploading Codeboss.AspNetCore package to Nuget using branch ${GITHUB_REF##*/}
 
