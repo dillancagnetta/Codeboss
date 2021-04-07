@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Runtime.InteropServices;
 using CodeBoss.Extensions;
 using Codeboss.Types;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using TimeZoneConverter;
 using TimeZoneInfo = System.TimeZoneInfo;
 
 namespace CodeBoss.AspNetCore.CbDateTime
@@ -9,19 +12,45 @@ namespace CodeBoss.AspNetCore.CbDateTime
     public class CodeBossDateTimeProvider : IDateTimeProvider
     {
         private readonly DateTimeOptions _options;
+        private readonly ILogger<CodeBossDateTimeProvider> _logger;
 
-        public CodeBossDateTimeProvider(IOptions<DateTimeOptions> options) => _options = options?.Value;
+        public CodeBossDateTimeProvider(IOptions<DateTimeOptions> options, ILogger<CodeBossDateTimeProvider> logger)
+        {
+            _logger = logger;
+            _options = options?.Value;
+        }
 
         private TimeZoneInfo _timeZoneInfo;
         public TimeZoneInfo TimeZoneInfo
         {
             get
             {
-                _timeZoneInfo = _options?.TimeZone == null || _options.TimeZone.IsNullOrEmpty()
-                    ? TimeZoneInfo.Local 
-                    : TimeZoneInfo.FindSystemTimeZoneById(_options.TimeZone);
+                try
+                {
+                    if(_options?.TimeZone == null || _options.TimeZone.IsNullOrEmpty())
+                    {
+                        _timeZoneInfo = TimeZoneInfo.Local;
+                    }
+                    else
+                    {
+                        if(RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                        {
+                            _timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(_options.TimeZone);
+                        }
+                        if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                        {
+                            string unixTimezone = TZConvert.WindowsToIana(_options.TimeZone);
+                            _timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(unixTimezone);
+                        }
+                    }
 
-                return _timeZoneInfo;
+                    return _timeZoneInfo;
+                }
+                catch(Exception ex)
+                {
+                    _logger.LogError("Error converting time zone. Defaulting to local", ex);
+                    return TimeZoneInfo.Local;
+                }
             }
         }
 
