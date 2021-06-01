@@ -10,6 +10,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{B5E54A4A-6452-47D9-8237-4131DFD45D6B}"
 	ProjectSection(SolutionItems) = preProject
 		.travis.yml = .travis.yml
+		.github\workflows\main.yml = .github\workflows\main.yml
 		scripts\pack.sh = scripts\pack.sh
 	EndProjectSection
 EndProject
@@ -17,7 +18,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeBoss.Extensions", "src\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeBoss.AspNetCore", "src\CodeBoss.AspNetCore\src\CodeBoss.AspNetCore\CodeBoss.AspNetCore.csproj", "{23842C24-4070-468F-852D-B9B08E7920B9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeBoss.CQRS", "src\CodeBoss.CQRS\src\CodeBoss.CQRS\CodeBoss.CQRS.csproj", "{EF3FB939-1F0E-4A12-8435-40E91FB27A44}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeBoss.CQRS", "src\CodeBoss.CQRS\src\CodeBoss.CQRS\CodeBoss.CQRS.csproj", "{EF3FB939-1F0E-4A12-8435-40E91FB27A44}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{E60F2801-697D-41F7-B4F0-665185B4BE29}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeBoss.AspNetCore.Tests", "tests\CodeBoss.AspNetCore.Tests\CodeBoss.AspNetCore.Tests.csproj", "{2C597CBD-F77A-4F24-832C-519D1F978489}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -41,6 +46,10 @@ Global
 		{EF3FB939-1F0E-4A12-8435-40E91FB27A44}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EF3FB939-1F0E-4A12-8435-40E91FB27A44}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EF3FB939-1F0E-4A12-8435-40E91FB27A44}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2C597CBD-F77A-4F24-832C-519D1F978489}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2C597CBD-F77A-4F24-832C-519D1F978489}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2C597CBD-F77A-4F24-832C-519D1F978489}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2C597CBD-F77A-4F24-832C-519D1F978489}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -50,6 +59,7 @@ Global
 		{4634A1C2-B9FA-428A-8A3F-5F7179BA0DAF} = {F218F777-B2A2-43D4-8541-F3DD10D83CE0}
 		{23842C24-4070-468F-852D-B9B08E7920B9} = {F218F777-B2A2-43D4-8541-F3DD10D83CE0}
 		{EF3FB939-1F0E-4A12-8435-40E91FB27A44} = {F218F777-B2A2-43D4-8541-F3DD10D83CE0}
+		{2C597CBD-F77A-4F24-832C-519D1F978489} = {E60F2801-697D-41F7-B4F0-665185B4BE29}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {123A5DE1-5C91-4AC3-8911-F09D27B0609A}
