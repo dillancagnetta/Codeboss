@@ -53,30 +53,30 @@ namespace CodeBoss.Extensions
         /// FirstNamesList.AsDelimited(",") would be "Ted,Suzy,Noah"
         /// FirstNamesList.AsDelimited(", ", " and ") would be "Ted, Suzy and Noah"
         /// </example>
-        /// <typeparam name="T"></typeparam>
+        /// <typeparam name="TSource"></typeparam>
         /// <param name="items">The items.</param>
         /// <param name="delimiter">The delimiter.</param>
         /// <param name="finalDelimiter">The final delimiter. Set this if the finalDelimiter should be a different delimiter</param>
         /// <returns></returns>
-        public static string AsDelimited<T>(this List<T> items, string delimiter, string finalDelimiter = null)
+        public static string AsDelimited<TSource>(this IEnumerable<TSource> items, string delimiter, string finalDelimiter = null)
         {
-            return AsDelimited<T>(items, delimiter, finalDelimiter, false);
+            return AsDelimited<TSource>(items, delimiter, finalDelimiter, false);
         }
 
         /// <summary>
         /// Concatenate the items into a Delimited string an optionally htmlencode the strings
         /// </summary>
-        /// <typeparam name="T"></typeparam>
+        /// <typeparam name="TSource"></typeparam>
         /// <param name="items">The items.</param>
         /// <param name="delimiter">The delimiter.</param>
         /// <param name="finalDelimiter">The final delimiter.</param>
         /// <param name="HtmlEncode">if set to <c>true</c> [HTML encode].</param>
         /// <returns></returns>
-        public static string AsDelimited<T>(this List<T> items, string delimiter, string finalDelimiter, bool HtmlEncode)
+        public static string AsDelimited<TSource>(this IEnumerable<TSource> items, string delimiter, string finalDelimiter, bool HtmlEncode)
         {
 
             List<string> strings = new List<string>();
-            foreach(T item in items)
+            foreach(TSource item in items)
             {
                 if(item != null)
                 {
