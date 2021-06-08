@@ -14,8 +14,8 @@ namespace CodeBoss.Extensions
         {
             if(start.HasValue)
                 return start.Age();
-            else
-                return 0;
+
+            return 0;
         }
 
         /// <summary>
@@ -70,8 +70,8 @@ namespace CodeBoss.Extensions
             {
                 return ToElapsedString(dateTime.Value, condensed, includeTime);
             }
-            else
-                return string.Empty;
+
+            return string.Empty;
         }
 
         /// <summary>
@@ -147,10 +147,8 @@ namespace CodeBoss.Extensions
             {
                 return dateTime.ToRelativeDateString(maxDays);
             }
-            else
-            {
-                return string.Empty;
-            }
+
+            return string.Empty;
         }
 
         /// <summary>
@@ -164,10 +162,18 @@ namespace CodeBoss.Extensions
             {
                 return dateTime.Value.ToShortDateString();
             }
-            else
-            {
-                return string.Empty;
-            }
+
+            return string.Empty;
+        }
+
+        /// <summary>
+        /// Converts a datetime to the short date/time format.
+        /// </summary>
+        /// <param name="dt">The dt.</param>
+        /// <returns></returns>
+        public static string ToShortDateTimeString(this DateTime dt)
+        {
+            return dt.ToShortDateString() + " " + dt.ToShortTimeString();
         }
 
         /// <summary>
@@ -307,5 +313,33 @@ namespace CodeBoss.Extensions
         {
             return ((fromDate.Month - 1) / 3) + 1;
         }
+
+        #region TimeSpan Extensions
+
+        /// <summary>
+        /// Returns a TimeSpan as h:mm AM/PM (culture invariant)
+        /// Examples: 1:45 PM, 12:01 AM
+        /// </summary>
+        /// <param name="timespan">The timespan.</param>
+        /// <returns></returns>
+        public static string ToTimeString(this TimeSpan timespan, IDateTimeProvider dateTimeProvider)
+        {
+            // since the comments on this say HH:MM AM/PM, make sure to return the time in that format
+            return dateTimeProvider.Now.Add(timespan).ToString("h:mm tt", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
+        /// Returns a TimeSpan as h:mm AM/PM (culture invariant)
+        /// Examples: 1:45 PM, 12:01 AM
+        /// </summary>
+        /// <param name="timespan">The timespan.</param>
+        /// <returns></returns>
+        public static string ToTimeUtcString(this TimeSpan timespan)
+        {
+            // since the comments on this say HH:MM AM/PM, make sure to return the time in that format
+            return DateTime.UtcNow.Add(timespan).ToString("h:mm tt", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        #endregion TimeSpan Extensions
     }
 }

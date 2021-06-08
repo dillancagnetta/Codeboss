@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Codeboss;
 
 namespace CodeBoss.Extensions
@@ -66,6 +67,52 @@ namespace CodeBoss.Extensions
             }
 
             return new List<Guid>(0);
+        }
+
+        /// <summary>
+        /// Splits a Camel or Pascal cased identifier into separate words.
+        /// </summary>
+        /// <param name="str">The identifier.</param>
+        /// <returns></returns>
+        public static string SplitCase(this string str)
+        {
+            if(str == null)
+            {
+                return null;
+            }
+
+            return Regex.Replace(Regex.Replace(str, @"(\P{Ll})(\P{Ll}\p{Ll})", "$1 $2"), @"(\p{Ll})(\P{Ll})", "$1 $2");
+        }
+
+        /// <summary>
+        /// Joins an array of English strings together with commas plus "and" for last element.
+        /// </summary>
+        /// <param name="source">The source.</param>
+        /// <returns>Concatenated string.</returns>
+        public static string JoinStringsWithCommaAnd(this IEnumerable<String> source)
+        {
+            if(source == null || !source.Any())
+            {
+                return string.Empty;
+            }
+
+            var output = string.Empty;
+
+            var list = source.ToList();
+
+            if(list.Count > 1)
+            {
+                var delimited = string.Join(", ", list.Take(list.Count - 1));
+
+                output = string.Concat(delimited, " and ", list.LastOrDefault());
+            }
+            else
+            {
+                // only one element, just use it
+                output = list[0];
+            }
+
+            return output;
         }
     }
 }
