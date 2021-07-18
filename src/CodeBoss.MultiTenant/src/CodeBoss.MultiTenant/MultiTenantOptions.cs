@@ -3,6 +3,6 @@
     public class MultiTenantOptions
     {
         public bool Enabled { get; set; }
-        public ITenant[] Tenants { get; set; }
+        public Tenant[] Tenants { get; set; }
     }
 }
