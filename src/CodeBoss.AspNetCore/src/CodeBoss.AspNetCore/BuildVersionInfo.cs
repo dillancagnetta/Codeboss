@@ -16,6 +16,9 @@ namespace CodeBoss.AspNetCore
         string Build { get; }
     }
 
+    /// <summary>
+    /// Version should be '20211203-1-Production'
+    /// </summary>
     public class BuildVersionInfo : IBuildVersionInfo
     {
         private static readonly string _buildFileName = "buildinfo.json";
@@ -44,6 +47,6 @@ namespace CodeBoss.AspNetCore
 
         // Defaults
         public string Build { get; } = "1";
-        public string Version { get; } = $"{DateTime.UtcNow:yyyyMMdd}-1-Development";
+        public string Version { get; } = $"{DateTime.UtcNow:yyyyMMdd}-local";
     }
 }
