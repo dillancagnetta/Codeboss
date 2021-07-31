@@ -67,7 +67,7 @@ namespace CodeBoss.Extensions
         /// <typeparam name="T"></typeparam>
         /// <param name="val">The value.</param>
         /// <returns></returns>
-        public static T FromJsonOrNull<T>(this string val)
+        public static T FromJsonOrNull<T>(this string val) where T: class
         {
             try
             {
@@ -78,7 +78,7 @@ namespace CodeBoss.Extensions
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Unable to deserialize to {typeof(T).Name}. {ex}");
-                return default(T);
+                return null;
             }
         }
 
