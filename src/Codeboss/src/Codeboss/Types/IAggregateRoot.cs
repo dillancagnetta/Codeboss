@@ -1,6 +1,6 @@
 ﻿namespace Codeboss.Types
 {
-    public interface IAggregateRoot<out TPrimaryKey> : IEntity<TPrimaryKey>
+    public interface IAggregateRoot<TPrimaryKey> : IEntity<TPrimaryKey>
     {
     }
 }
