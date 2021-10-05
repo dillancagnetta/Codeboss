@@ -26,8 +26,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeBoss.AspNetCore.Tests",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeBoss.MultiTenant", "src\CodeBoss.MultiTenant\src\CodeBoss.MultiTenant\CodeBoss.MultiTenant.csproj", "{0CB36332-3B8F-4992-B634-79A5C2A6DFB0}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeBoss.MassTransit", "src\CodeBoss.MassTransit\src\CodeBoss.MassTransit\CodeBoss.MassTransit.csproj", "{019B95A9-509E-4CA3-BB5F-8B39D86D2288}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -58,10 +56,6 @@ Global
 		{0CB36332-3B8F-4992-B634-79A5C2A6DFB0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0CB36332-3B8F-4992-B634-79A5C2A6DFB0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0CB36332-3B8F-4992-B634-79A5C2A6DFB0}.Release|Any CPU.Build.0 = Release|Any CPU
-		{019B95A9-509E-4CA3-BB5F-8B39D86D2288}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{019B95A9-509E-4CA3-BB5F-8B39D86D2288}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{019B95A9-509E-4CA3-BB5F-8B39D86D2288}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{019B95A9-509E-4CA3-BB5F-8B39D86D2288}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -73,7 +67,6 @@ Global
 		{EF3FB939-1F0E-4A12-8435-40E91FB27A44} = {F218F777-B2A2-43D4-8541-F3DD10D83CE0}
 		{2C597CBD-F77A-4F24-832C-519D1F978489} = {E60F2801-697D-41F7-B4F0-665185B4BE29}
 		{0CB36332-3B8F-4992-B634-79A5C2A6DFB0} = {F218F777-B2A2-43D4-8541-F3DD10D83CE0}
-		{019B95A9-509E-4CA3-BB5F-8B39D86D2288} = {F218F777-B2A2-43D4-8541-F3DD10D83CE0}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {123A5DE1-5C91-4AC3-8911-F09D27B0609A}

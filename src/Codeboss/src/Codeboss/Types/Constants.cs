@@ -21,9 +21,9 @@
 
             public class Method
             {
-                public const string Alert = "alertNotification";
-                public const string Direct = "directMessage";
-                public const string Broadcast = "broadcastMessage";
+                public const string Alert = "AlertNotification";
+                public const string Direct = "DirectMessage";
+                public const string Broadcast = "BroadcastMessage";
             }
         }
     }
