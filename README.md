@@ -1,9 +1,17 @@
 # Codeboss - Simple reusable components
 
-[![Build Status](https://travis-ci.com/codeboss-co/Codeboss.svg?branch=master)](https://travis-ci.com/codeboss-co/Codeboss)
+[![CI](https://github.com/codeboss-co/Codeboss/actions/workflows/main.yml/badge.svg?branch=master)](https://github.com/codeboss-co/Codeboss/actions/workflows/main.yml)
 
-# Roadmap
+# Current Status
 
-These are the features and integrations that we're planning to work on.
+These are the features and integrations currently supported.
 
-* [x] DDD - domain driven design basic building blocks
+* [x] DDD - Domain driven design building blocks
+* [x] DI - custom .NET dependency injection framework
+* [x] Timezones - support for configurable time zones
+* [x] Startup Initializers
+* [x] CQRS 
+* [x] Reusable Extension methods 
+* [x] Multitenant support
+* [x] Security
+
