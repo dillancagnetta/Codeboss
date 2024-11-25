@@ -1,9 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <Description>CodeBoss.Extensions</Description>
     <Authors>CodeBoss.co</Authors>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <LangVersion>Latest</LangVersion>
     <AssemblyName>CodeBoss.Extensions</AssemblyName>
     <Title>CodeBoss.Extensions</Title>
@@ -11,13 +10,10 @@
     <PackageTags>CodeBoss.Extensions</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
-
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+    <PackageReference Include="Newtonsoft.Json" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\..\..\Codeboss\src\Codeboss\Codeboss.csproj" />
   </ItemGroup>
-
 </Project>

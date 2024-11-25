@@ -1,15 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <Description>CodeBoss</Description>
     <Authors>CodeBoss.co</Authors>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <LangVersion>Latest</LangVersion>
     <AssemblyName>CodeBoss</AssemblyName>
     <Title>CodeBoss</Title>
     <PackageId>CodeBoss</PackageId>
     <PackageTags>CodeBoss</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-  </PropertyGroup> 
-  
+  </PropertyGroup>
 </Project>
