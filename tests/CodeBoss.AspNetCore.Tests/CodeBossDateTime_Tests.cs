@@ -32,5 +32,16 @@ namespace CodeBoss.AspNetCore.Tests
             Assert.True(from.DayOfWeek == DayOfWeek.Monday);
             Assert.True(to.DayOfWeek == DayOfWeek.Sunday);
         }
+        
+        [Fact]
+        public void Should_generate_weekly_dates()
+        {
+            DateTime from = DateTime.Today.AddMonths(-6); // Example start date (6 months ago)
+            foreach (var date in from.GetWeeklyDates(DayOfWeek.Wednesday))
+            {
+                Assert.True(date.DayOfWeek == DayOfWeek.Wednesday);
+                Assert.True(from < DateTime.UtcNow);
+            }
+        }
     }
 }

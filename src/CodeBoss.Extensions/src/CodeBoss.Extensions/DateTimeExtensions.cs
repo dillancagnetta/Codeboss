@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Codeboss.Types;
 
 namespace CodeBoss.Extensions
@@ -312,6 +313,36 @@ namespace CodeBoss.Extensions
         public static int Quarter(this DateTime fromDate)
         {
             return ((fromDate.Month - 1) / 3) + 1;
+        }
+        
+        /// <summary>
+        /// Generate Weekly Dates: Start from the calculated target day and step back by 7 days for the specified number of weeks.
+        /// </summary>
+        /// <param name="startDate"></param>
+        /// <param name="targetDay"></param>
+        /// <param name="weeks"></param>
+        /// <example>foreach (var date in today.GetWeeklyDates(DayOfWeek.Sunday))</example>
+        /// <returns></returns>
+        public static IEnumerable<DateTime> GetWeeklyDates(
+            this DateTime startDate,
+            DayOfWeek targetDay,
+            int weeks = 52)
+        {
+            // Calculate the first occurrence of the target day of the week on or before the start date
+            int daysToTarget = ((int)startDate.DayOfWeek - (int)targetDay + 7) % 7;
+            DateTime targetDate = startDate.AddDays(-daysToTarget);
+
+            // Generate weekly dates
+            for (int i = 0; i < weeks; i++)
+            {
+                DateTime currentWeekDate = targetDate.AddDays(-7 * i);
+
+                // Stop if the date exceeds today
+                if (currentWeekDate > DateTime.Today)
+                    yield break;
+
+                yield return currentWeekDate;
+            }
         }
 
         #region TimeSpan Extensions
