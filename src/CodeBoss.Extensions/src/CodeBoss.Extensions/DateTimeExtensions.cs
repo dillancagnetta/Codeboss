@@ -323,25 +323,23 @@ namespace CodeBoss.Extensions
         /// <param name="weeks"></param>
         /// <example>foreach (var date in today.GetWeeklyDates(DayOfWeek.Sunday))</example>
         /// <returns></returns>
-        public static IEnumerable<DateTime> GetWeeklyDates(
+        public static IEnumerable<DateTime> GetWeeklyDatesFrom(
             this DateTime startDate,
             DayOfWeek targetDay,
             int weeks = 52)
         {
-            // Calculate the first occurrence of the target day of the week on or before the start date
-            int daysToTarget = ((int)startDate.DayOfWeek - (int)targetDay + 7) % 7;
-            DateTime targetDate = startDate.AddDays(-daysToTarget);
+            // Adjust startDate to the first occurrence of the target day of the week on or after the start date
+            int daysToTarget = ((int)targetDay - (int)startDate.DayOfWeek + 7) % 7;
+            DateTime targetDate = startDate.AddDays(daysToTarget);
 
-            // Generate weekly dates
+            // Generate weekly dates incrementally until today or the max weeks limit
             for (int i = 0; i < weeks; i++)
             {
-                DateTime currentWeekDate = targetDate.AddDays(-7 * i);
-
-                // Stop if the date exceeds today
-                if (currentWeekDate > DateTime.Today)
+                if (targetDate > DateTime.Today)
                     yield break;
 
-                yield return currentWeekDate;
+                yield return targetDate;
+                targetDate = targetDate.AddDays(7);
             }
         }
 

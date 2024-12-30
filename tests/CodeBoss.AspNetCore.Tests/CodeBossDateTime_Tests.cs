@@ -36,11 +36,16 @@ namespace CodeBoss.AspNetCore.Tests
         [Fact]
         public void Should_generate_weekly_dates()
         {
-            DateTime from = DateTime.Today.AddMonths(-6); // Example start date (6 months ago)
-            foreach (var date in from.GetWeeklyDates(DayOfWeek.Wednesday))
+            DateTime from = DateTime.Today.AddMonths(-1); // Example start date (1 months ago)
+            DateTime previous = from;
+            foreach (var date in from.GetWeeklyDatesFrom(DayOfWeek.Wednesday))
             {
                 Assert.True(date.DayOfWeek == DayOfWeek.Wednesday);
                 Assert.True(from < DateTime.UtcNow);
+                Assert.True(previous < date);
+                
+                // Adjust to compare
+                previous = date;
             }
         }
     }
