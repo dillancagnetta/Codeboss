@@ -16,9 +16,15 @@ public class ServiceJobQuartzService(IDateTimeProvider dateTimeProvider) : IServ
         {
             return null;
         }
+
+        var map = job.JobParameters != null 
+            ? new JobDataMap(job.JobParameters) 
+            : new JobDataMap();
+        
         var jobDetail = JobBuilder.Create(jobType)
             .WithIdentity(jobKey)
-            .UsingJobData(new JobDataMap(job.JobParameters))
+            .WithDescription( job.Id.ToString() )
+            .UsingJobData( map )
             .Build();
         
         return jobDetail;

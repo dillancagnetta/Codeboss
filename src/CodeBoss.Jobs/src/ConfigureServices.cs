@@ -10,11 +10,16 @@ namespace CodeBoss.Jobs;
 
 public static class ConfigureServices
 {
-    public static IServiceCollection AddCodeBossJobs(this IServiceCollection services, IConfiguration configuration,
-        Type repo)
+    public static IServiceCollection AddCodeBossJobs(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        Type repo,
+        bool productionMode = false)
     {
         services.Configure<QuartzOptions>(configuration.GetSection(nameof(QuartzOptions)));
 
+        // in test mode, run every minute, otherwise run 15mins
+        var cronExpression = productionMode ? "0 0/15 * * * ?" : "0 * * ? * *" ;
         services.AddQuartz(q =>
         {
             q.UseSimpleTypeLoader();
@@ -22,10 +27,9 @@ public static class ConfigureServices
             q.UseDefaultThreadPool(tp => tp.MaxConcurrency = 10);
                 
             q.ScheduleJob<JobPulse>(trigger => trigger
-                .WithIdentity("JobPulse")
+                .WithIdentity("JobPulse" , "System")
                 .StartNow()
-                 // Run every minute
-                .WithCronSchedule("0 * * ? * *")
+                .WithCronSchedule(cronExpression)
                 .WithDescription("Main CodeBoss Jobs Processor"));
         });
 

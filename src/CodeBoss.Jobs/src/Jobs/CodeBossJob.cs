@@ -1,11 +1,14 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading;
+using System.Threading.Tasks;
 using CodeBoss.Jobs.Abstractions;
 using CodeBoss.Jobs.Model;
+using Microsoft.Extensions.Logging;
 using Quartz;
 
 namespace CodeBoss.Jobs.Jobs
 {
-    public abstract class CodeBossJob(IServiceJobRepository repository) : ICodeBossJob
+    public abstract class CodeBossJob(IServiceJobRepository repository, ILogger<CodeBossJob> logger) : ICodeBossJob
     {
         /// <summary>
         /// Gets the job identifier.
@@ -26,7 +29,7 @@ namespace CodeBoss.Jobs.Jobs
         /// Gets the name of the service job.
         /// </summary>
         /// <value>The name of the service job.</value>
-        public string ServiceJobName => ServiceJob?.Name;
+        public string ServiceJobName => ServiceJob?.Name ?? "JobPulse";
 
         /// <summary>
         /// Gets the service job.
@@ -48,28 +51,47 @@ namespace CodeBoss.Jobs.Jobs
         
         private readonly IServiceJobRepository _repository = repository;
 
-        public virtual Task Execute(IJobExecutionContext context)
+        Task Quartz.IJob.Execute( Quartz.IJobExecutionContext context )
         {
+            logger?.LogInformation("Executing quartz job: {0}", ServiceJobName);
             return ExecuteInternal(context);
         }
         
         /// <summary>
         /// Executes this instance.
         /// </summary>
-        public abstract Task Execute();
+        public abstract Task Execute(CancellationToken ct = default);
 
         private async Task ExecuteInternal(IJobExecutionContext context)
         {
-            await InitializeFromJobContext( context );
+            InitializeFromJobContext(context).Wait();
+
+            try
+            {
+                logger?.LogInformation("Executing job: {0} at [{1}]", ServiceJobName, DateTime.Now);
+                await Execute(context.CancellationToken);
+                //await repository.SaveChangesAsync(context.CancellationToken);
+                logger?.LogInformation("Executing job complete: {0} at [{1}]", ServiceJobName, DateTime.Now);
+            }
+            catch (Exception e)
+            {
+                logger?.LogError(e.Message);
+                throw;
+            }
 
         }
 
         private async Task InitializeFromJobContext(IJobExecutionContext context)
         {
             var serviceJobId = context.GetJobIdFromQuartz();
-            ServiceJobId = serviceJobId;
-            ServiceJob = await _repository.GetByIdAsync( serviceJobId );
             Scheduler = context.Scheduler;
+            // Skip JobPulse job
+            if (!context.JobDetail.Key.Group.Equals("System"))
+            {
+                ServiceJobId = serviceJobId;
+                ServiceJob = await _repository.GetByIdAsync( serviceJobId );
+                logger?.LogInformation("Initialized From JobContext: {0} with Id: {1}", ServiceJobName, serviceJobId);
+            }
         }
         
         /// <summary>

@@ -13,7 +13,7 @@ public static class QuartzExtensionMethods
 
     public static Type GetCompiledType(this ServiceJob job)
     {
-        var jobType = Type.GetType($"{job.Assembly}.{job.Class}");
+        var jobType = Type.GetType( $"{job.Class}, {job.Assembly}", false, true );
         return jobType;
     }
 }
