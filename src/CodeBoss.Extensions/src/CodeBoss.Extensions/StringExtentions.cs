@@ -4,115 +4,171 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Codeboss;
 
-namespace CodeBoss.Extensions
+namespace CodeBoss.Extensions;
+
+public static partial class Extensions
 {
-    public static partial class Extensions
+    /// <summary>
+    /// Indicates whether this string is null or an System.String.Empty string.
+    /// </summary>
+    public static bool IsNullOrEmpty(this string str) => string.IsNullOrEmpty(str);
+
+    /// <summary>
+    /// indicates whether this string is null, empty, or consists only of white-space characters.
+    /// </summary>
+    public static bool IsNullOrWhiteSpace(this string str) => string.IsNullOrWhiteSpace(str);
+
+    public static Uri ToUri(this string s)
     {
-        /// <summary>
-        /// Indicates whether this string is null or an System.String.Empty string.
-        /// </summary>
-        public static bool IsNullOrEmpty(this string str) => string.IsNullOrEmpty(str);
+        if (string.IsNullOrEmpty(s)) return null;
 
-        /// <summary>
-        /// indicates whether this string is null, empty, or consists only of white-space characters.
-        /// </summary>
-        public static bool IsNullOrWhiteSpace(this string str) => string.IsNullOrWhiteSpace(str);
+        return new Uri(s, UriKind.Absolute);
+    }
 
-        public static Uri ToUri(this string s)
+    /// <summary>
+    /// Adds a char to end of given string if it does not ends with the char.
+    /// </summary>
+    public static string EnsureEndsWith(this string str, char c, StringComparison comparisonType = StringComparison.Ordinal)
+    {
+        Check.NotNull(str, nameof(str));
+
+        if (str.EndsWith(c.ToString(), comparisonType))
         {
-            if (string.IsNullOrEmpty(s)) return null;
-
-            return new Uri(s, UriKind.Absolute);
+            return str;
         }
 
-        /// <summary>
-        /// Adds a char to end of given string if it does not ends with the char.
-        /// </summary>
-        public static string EnsureEndsWith(this string str, char c, StringComparison comparisonType = StringComparison.Ordinal)
+        return str + c;
+    }
+
+    /// <summary>
+    /// Adds a char to beginning of given string if it does not starts with the char.
+    /// </summary>
+    public static string EnsureStartsWith(this string str, char c, StringComparison comparisonType = StringComparison.Ordinal)
+    {
+        Check.NotNull(str, nameof(str));
+
+        if (str.StartsWith(c.ToString(), comparisonType))
         {
-            Check.NotNull(str, nameof(str));
-
-            if (str.EndsWith(c.ToString(), comparisonType))
-            {
-                return str;
-            }
-
-            return str + c;
+            return str;
         }
 
-        /// <summary>
-        /// Adds a char to beginning of given string if it does not starts with the char.
-        /// </summary>
-        public static string EnsureStartsWith(this string str, char c, StringComparison comparisonType = StringComparison.Ordinal)
+        return c + str;
+    }
+
+
+    /// <summary>
+    /// Converts string enumerable to Guid
+    /// </summary>
+    public static IEnumerable<Guid> ToGuids(this IEnumerable<string> source)
+    {
+        if (!source.IsNullOrEmpty())
         {
-            Check.NotNull(str, nameof(str));
-
-            if (str.StartsWith(c.ToString(), comparisonType))
-            {
-                return str;
-            }
-
-            return c + str;
+            return source.Select(x => Guid.Parse(x));
         }
 
+        return new List<Guid>(0);
+    }
 
-        /// <summary>
-        /// Converts string enumerable to Guid
-        /// </summary>
-        public static IEnumerable<Guid> ToGuids(this IEnumerable<string> source)
+    /// <summary>
+    /// Splits a Camel or Pascal cased identifier into separate words.
+    /// </summary>
+    /// <param name="str">The identifier.</param>
+    /// <returns></returns>
+    public static string SplitCase(this string str)
+    {
+        if(str == null)
         {
-            if (!source.IsNullOrEmpty())
-            {
-                return source.Select(x => Guid.Parse(x));
-            }
-
-            return new List<Guid>(0);
+            return null;
         }
 
-        /// <summary>
-        /// Splits a Camel or Pascal cased identifier into separate words.
-        /// </summary>
-        /// <param name="str">The identifier.</param>
-        /// <returns></returns>
-        public static string SplitCase(this string str)
-        {
-            if(str == null)
-            {
-                return null;
-            }
+        return Regex.Replace(Regex.Replace(str, @"(\P{Ll})(\P{Ll}\p{Ll})", "$1 $2"), @"(\p{Ll})(\P{Ll})", "$1 $2");
+    }
 
-            return Regex.Replace(Regex.Replace(str, @"(\P{Ll})(\P{Ll}\p{Ll})", "$1 $2"), @"(\p{Ll})(\P{Ll})", "$1 $2");
+    /// <summary>
+    /// Joins an array of English strings together with commas plus "and" for last element.
+    /// </summary>
+    /// <param name="source">The source.</param>
+    /// <returns>Concatenated string.</returns>
+    public static string JoinStringsWithCommaAnd(this IEnumerable<String> source)
+    {
+        if(source == null || !source.Any())
+        {
+            return string.Empty;
         }
 
-        /// <summary>
-        /// Joins an array of English strings together with commas plus "and" for last element.
-        /// </summary>
-        /// <param name="source">The source.</param>
-        /// <returns>Concatenated string.</returns>
-        public static string JoinStringsWithCommaAnd(this IEnumerable<String> source)
+        var output = string.Empty;
+
+        var list = source.ToList();
+
+        if(list.Count > 1)
         {
-            if(source == null || !source.Any())
-            {
-                return string.Empty;
-            }
+            var delimited = string.Join(", ", list.Take(list.Count - 1));
 
-            var output = string.Empty;
+            output = string.Concat(delimited, " and ", list.LastOrDefault());
+        }
+        else
+        {
+            // only one element, just use it
+            output = list[0];
+        }
 
-            var list = source.ToList();
+        return output;
+    }
+        
+    /// <summary>
+    /// Attempts to convert string to integer.  Returns 0 if unsuccessful.
+    /// </summary>
+    /// <param name="str">The STR.</param>
+    /// <returns></returns>
+    [System.Diagnostics.DebuggerStepThrough]
+    public static int AsInteger( this string str )
+    {
+        return str.AsIntegerOrNull() ?? 0;
+    }
+        
+    /// <summary>
+    /// Attempts to convert string to an integer.  Returns null if unsuccessful.
+    /// </summary>
+    /// <param name="str">The string.</param>
+    /// <returns></returns>
+    [System.Diagnostics.DebuggerStepThrough]
+    public static int? AsIntegerOrNull( this string str )
+    {
+        if ( int.TryParse( str, out var value ) )
+        {
+            return value;
+        }
 
-            if(list.Count > 1)
-            {
-                var delimited = string.Join(", ", list.Take(list.Count - 1));
+        return null;
+    }
+    
+    /// <summary>
+    /// Attempts to convert string to Guid.  Returns Guid.Empty if unsuccessful.
+    /// </summary>
+    /// <param name="str">The STR.</param>
+    /// <returns></returns>
+    [System.Diagnostics.DebuggerStepThrough]
+    public static Guid AsGuid( this string str )
+    {
+        return str.AsGuidOrNull() ?? Guid.Empty;
+    }
 
-                output = string.Concat(delimited, " and ", list.LastOrDefault());
-            }
-            else
-            {
-                // only one element, just use it
-                output = list[0];
-            }
-
-            return output;
+    /// <summary>
+    /// Attempts to convert string to Guid.  Returns null if unsuccessful.
+    /// </summary>
+    /// <param name="str">The string.</param>
+    /// <returns></returns>
+    [System.Diagnostics.DebuggerStepThrough]
+    public static Guid? AsGuidOrNull( this string str )
+    {
+        Guid value;
+        if ( Guid.TryParse( str, out value ) )
+        {
+            return value;
+        }
+        else
+        {
+            return null;
         }
     }
 }
