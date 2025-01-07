@@ -10,7 +10,7 @@ public class ServiceJobQuartzService(IDateTimeProvider dateTimeProvider) : IServ
 {
     public IJobDetail BuildQuartzJob(ServiceJob job)
     {
-        var jobKey = new JobKey(job.Guid.ToString(), job.Name);
+        var jobKey = new JobKey(job.JobKey.ToString(), job.Name);
         var jobType = job.GetCompiledType();
         if ( jobType == null )
         {
@@ -46,10 +46,10 @@ public class ServiceJobQuartzService(IDateTimeProvider dateTimeProvider) : IServ
         
         // create quartz trigger
         ITrigger trigger = ( ICronTrigger ) TriggerBuilder.Create()
-            .WithIdentity( $"{job.Guid}-trigger", job.Name )
+            .WithIdentity( $"{job.JobKey}-trigger", job.Name )
             .WithCronSchedule( cronExpression, x =>
             {
-                x.InTimeZone( dateTimeProvider.TimeZoneInfo );
+                x.InTimeZone( dateTimeProvider?.TimeZoneInfo ?? TimeZoneInfo.Utc );
                 x.WithMisfireHandlingInstructionDoNothing();
             } )
             .StartNow()

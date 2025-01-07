@@ -96,14 +96,26 @@ namespace CodeBoss.Jobs.Jobs
         
         /// <summary>
         /// Updates the last status message.
-        /// NOTE: This method has a read and a write database operation and also writes to the Rock Logger with DEBUG level logging.
+        /// NOTE: This method has a read and a write database operation and also writes to the Logger with DEBUG level logging.
         /// </summary>
-        /// <param name="statusMessage">The status message.</param>
-        public async Task UpdateLastStatusMessage( string statusMessage )
+        /// <param name="status">The status message.</param>
+        protected async Task UpdateLastStatusMessage(string status )
         {
-            Result = statusMessage;
+            Result = status;
 
-            await _repository.UpdateLastStatusMessageAsync(ServiceJobId, statusMessage);
+            await _repository.UpdateLastStatusMessageAsync(ServiceJobId, status);
+        }
+        
+        
+        /// <summary>
+        /// Updates the last status message.
+        /// NOTE: This method has a read and a write database operation and also writes to the Logger with DEBUG level logging.
+        /// </summary>
+        protected async Task UpdateStatusMessagesAsync(string message, string status )
+        {
+            Result = status;
+
+            await _repository.UpdateStatusMessagesAsync(ServiceJobId, message, status);
         }
     }
 }

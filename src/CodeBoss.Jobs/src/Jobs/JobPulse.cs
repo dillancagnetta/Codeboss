@@ -20,7 +20,14 @@ public class JobPulse(
     {
         await SynchronizeJobs(ct);
     }
-
+    
+    /// <summary>
+    /// Synchronizes the jobs in the database with the scheduled Quartz jobs.
+    /// This method performs the following operations:
+    /// 1. Deletes jobs that are no longer active in the database.
+    /// 2. Schedules new active jobs that are not yet scheduled.
+    /// 3. Reschedules existing jobs if their schedule or details have changed.
+    /// </summary>
     private async Task SynchronizeJobs(CancellationToken ct)
     {
         int jobsDeleted = 0;
@@ -32,46 +39,35 @@ public class JobPulse(
             .Where(jobKey => jobKey.Group != "System").ToList();
 
         // delete any jobs that are no longer exist (are not set to active) in the database
-        foreach (var jobKey in scheduledQuartzJobs)
+        var quartsJobsToDelete = scheduledQuartzJobs.Where(jobKey => !activeJobs.Any(j => j.JobKey.ToString() == jobKey.Name));
+        foreach (JobKey jobKey in quartsJobsToDelete)
         {
-            if (!activeJobs.Any(j => j.Guid.ToString() == jobKey.Name))
-            {
-                await scheduler.DeleteJob(jobKey, ct);
-                jobsDeleted++;
-            }
+            scheduler.DeleteJob( jobKey );
+            jobsDeleted++;
         }
 
         // add any jobs that are not yet scheduled
-        var newActiveJobs = activeJobs.Where(a => !scheduledQuartzJobs.Any(q => q.Name.AsGuid().Equals(a.Guid)));
+        var newActiveJobs = activeJobs.Where(a => !scheduledQuartzJobs.Any(q => q.Name.AsGuid().Equals(a.JobKey)));
         foreach (var job in newActiveJobs)
         {
             const string errorSchedulingStatus = "Error scheduling Job";
             try
             {
                 IJobDetail jobDetail = service.BuildQuartzJob(job);
-                if (jobDetail == null)
-                {
-                    continue;
-                }
+                
+                if (jobDetail == null) continue;
 
                 ITrigger jobTrigger = service.BuildQuartzTrigger(job);
 
                 // Schedule the job (unless the cron expression is set to never run for an on-demand job like rebuild streaks)
-                if (job.CronExpression != Model.ServiceJob.NeverScheduledCronExpression)
+                if (job.CronExpression != ServiceJob.NeverScheduledCronExpression)
                 {
-                    scheduler.ScheduleJob(jobDetail, jobTrigger);
-                    //job.LastStatusMessage = "Scheduled";
-                    //await repository.SaveChangesAsync(ct);
+                    await scheduler.ScheduleJob(jobDetail, jobTrigger, ct);
                     jobsScheduleUpdated++;
                 }
 
                 // if the last status was an error, but we now loaded successful, clear the error
-                if (job.LastStatus == errorSchedulingStatus)
-                {
-                    job.LastStatusMessage = string.Empty;
-                    job.LastStatus = string.Empty;
-                    await repository.SaveChangesAsync(ct);
-                }
+                if (job.LastStatus == errorSchedulingStatus) await repository.ClearStatusesAsync(job, ct);
             }
             catch (Exception ex)
             {
@@ -79,14 +75,14 @@ public class JobPulse(
             }
         }
 
-        // reload the jobs in case any where added/removed
+        // reload the jobs in case any where added/removed (skip JobPulse job)
         scheduledQuartzJobs = (await scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup(), ct))
             .Where(jobKey => jobKey.Group != "System").ToList();
         foreach (var jobKey in scheduledQuartzJobs)
         {
             var triggersOfJob = await scheduler.GetTriggersOfJob(jobKey, ct);
             var jobCronTrigger = triggersOfJob.OfType<ICronTrigger>().FirstOrDefault();
-            var activeJob = activeJobs.FirstOrDefault(a => a.Guid.Equals(jobKey.Name.AsGuid()));
+            var activeJob = activeJobs.FirstOrDefault(a => a.JobKey.Equals(jobKey.Name.AsGuid()));
             if (jobCronTrigger == null || activeJob == null)
             {
                 continue;
@@ -95,10 +91,7 @@ public class JobPulse(
             bool rescheduleJob = false;
 
             // fix up the schedule if it has changed
-            if (activeJob.CronExpression != jobCronTrigger.CronExpressionString)
-            {
-                rescheduleJob = true;
-            }
+            if (activeJob.CronExpression != jobCronTrigger.CronExpressionString) rescheduleJob = true;
             else
             {
                 // update the job detail if it has changed
@@ -107,10 +100,7 @@ public class JobPulse(
 
                 if (scheduledJobDetail != null && activeJobType != null)
                 {
-                    if (scheduledJobDetail.JobType != activeJobType)
-                    {
-                        rescheduleJob = true;
-                    }
+                    if (scheduledJobDetail.JobType != activeJobType) rescheduleJob = true;
                 }
             }
 
@@ -126,9 +116,7 @@ public class JobPulse(
 
                     if (activeJob.LastStatus == errorReschedulingStatus)
                     {
-                        activeJob.LastStatusMessage = string.Empty;
-                        activeJob.LastStatus = string.Empty;
-                        await repository.SaveChangesAsync(ct);
+                        await repository.ClearStatusesAsync(activeJob, ct);
                     }
                     
                     if (deletedSuccessfully)
@@ -153,8 +141,7 @@ public class JobPulse(
 
         if (jobsScheduleUpdated > 0)
         {
-            Result += (Result.IsNullOrEmpty() ? "" : " and ") +
-                      $"Updated {jobsScheduleUpdated} schedule(s)";
+            Result += (Result.IsNullOrEmpty() ? "" : " and ") + $"Updated {jobsScheduleUpdated} schedule(s)";
         }
         
         logger.LogInformation(Result);
@@ -165,10 +152,7 @@ public class JobPulse(
     {
         logger.LogError(ex.Message);
         // create a friendly error message
-        string message = string.Format("Error scheduling the job: {0}.\n\n{2}", job.Name,
-            job.Assembly, ex.Message);
-        job.LastStatusMessage = message;
-        job.LastStatus = errorStatus;
-        await repository.SaveChangesAsync(ct);
+        string message = string.Format("Error scheduling the job: {0}.\n\n{2}", job.Name, job.Assembly, ex.Message);
+        await repository.UpdateStatusMessagesAsync(job.Id, message, errorStatus, ct);
     }
 }
