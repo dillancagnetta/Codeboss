@@ -51,6 +51,11 @@ namespace CodeBoss.Jobs.Model
         public bool IsActive { get; set; }
         
         /// <summary>
+        /// Gets or sets the date and time that the Job last completed successfully.
+        /// </summary>
+        public DateTime? LastSuccessfulRunDateTime { get; set; }
+        
+        /// <summary>
         /// Gets or sets the date and time that the job last ran.
         /// </summary>
         public DateTime? LastRunDateTime { get; set; }

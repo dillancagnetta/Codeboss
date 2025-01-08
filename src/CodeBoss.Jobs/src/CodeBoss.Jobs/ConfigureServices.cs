@@ -5,6 +5,7 @@ using CodeBoss.Jobs.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Quartz;
+using Quartz.Impl.Matchers;
 
 namespace CodeBoss.Jobs;
 
@@ -14,8 +15,16 @@ public static class ConfigureServices
         this IServiceCollection services,
         IConfiguration configuration,
         Type repo,
-        bool productionMode = false)
+        bool productionMode = false,
+        IJobListener jobListener = null)
     {
+        if (repo == null)
+        {
+            throw new ArgumentNullException(nameof(repo), 
+                "Repository type cannot be null and must implement IServiceJobRepository interface." +
+                " Please provide a valid repository type.");
+        }
+        
         services.Configure<QuartzOptions>(configuration.GetSection(nameof(QuartzOptions)));
 
         // in test mode, run every minute, otherwise run 15mins
@@ -31,6 +40,12 @@ public static class ConfigureServices
                 .StartNow()
                 .WithCronSchedule(cronExpression)
                 .WithDescription("Main CodeBoss Jobs Processor"));
+            
+            if (jobListener != null)
+            {
+                q.AddJobListener(jobListener, EverythingMatcher<JobKey>.AllJobs()); 
+            }
+            
         });
 
         services.AddQuartzHostedService(options =>
