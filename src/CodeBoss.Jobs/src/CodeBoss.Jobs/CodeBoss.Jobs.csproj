@@ -17,6 +17,6 @@
         <PackageReference Include="Quartz.Extensions.Hosting"/>
     </ItemGroup>
     <ItemGroup>
-        <ProjectReference Include="..\..\CodeBoss.Extensions\src\CodeBoss.Extensions\CodeBoss.Extensions.csproj"/>
+        <ProjectReference Include="..\..\..\CodeBoss.Extensions\src\CodeBoss.Extensions\CodeBoss.Extensions.csproj"/>
     </ItemGroup>
 </Project>

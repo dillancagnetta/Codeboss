@@ -9,6 +9,6 @@ echo Uploading Codeboss.MultiTenant package to Nuget using branch ${GITHUB_REF##
 
 case "${GITHUB_REF##*/}" in
   "master")
-    dotnet nuget push *.nupkg -k $NUGET_API_KEY -s https://api.nuget.org/v3/index.json
+    dotnet nuget push *.nupkg -k $NUGET_API_KEY -s https://api.nuget.org/v3/index.json --skip-duplicate
     ;;
 esac

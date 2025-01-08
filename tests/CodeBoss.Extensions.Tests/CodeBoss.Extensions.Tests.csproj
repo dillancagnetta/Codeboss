@@ -25,7 +25,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\CodeBoss.Extensions\src\CodeBoss.Extensions\CodeBoss.Extensions.csproj" />
-        <ProjectReference Include="..\..\src\CodeBoss.Jobs\src\CodeBoss.Jobs.csproj" />
+        <ProjectReference Include="..\..\src\CodeBoss.Jobs\src\CodeBoss.Jobs\CodeBoss.Jobs.csproj" />
     </ItemGroup>
 
 </Project>

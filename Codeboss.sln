@@ -26,7 +26,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeBoss.AspNetCore.Tests",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeBoss.MultiTenant", "src\CodeBoss.MultiTenant\src\CodeBoss.MultiTenant\CodeBoss.MultiTenant.csproj", "{0CB36332-3B8F-4992-B634-79A5C2A6DFB0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeBoss.Jobs", "src\CodeBoss.Jobs\src\CodeBoss.Jobs.csproj", "{E2EC9697-CD22-49A0-92BD-37A0850B32C6}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeBoss.Jobs", "src\CodeBoss.Jobs\src\CodeBoss.Jobs\CodeBoss.Jobs.csproj", "{E2EC9697-CD22-49A0-92BD-37A0850B32C6}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeBoss.Extensions.Tests", "tests\CodeBoss.Extensions.Tests\CodeBoss.Extensions.Tests.csproj", "{C419F5F3-92F2-4C1C-80B7-44252E3157C3}"
 EndProject
