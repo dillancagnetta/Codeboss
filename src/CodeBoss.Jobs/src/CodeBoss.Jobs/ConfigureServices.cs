@@ -27,7 +27,7 @@ public static class ConfigureServices
         
         services.Configure<QuartzOptions>(configuration.GetSection(nameof(QuartzOptions)));
 
-        // in test mode, run every minute, otherwise run 15mins
+        // in test mode, run every minute, otherwise run every 15mins
         var cronExpression = productionMode ? "0 0/15 * * * ?" : "0 * * ? * *" ;
         services.AddQuartz(q =>
         {
@@ -45,7 +45,7 @@ public static class ConfigureServices
             {
                 q.AddJobListener(q =>
                 {
-                    var listener = q.GetRequiredService<IJobListener>();
+                    var listener = q.GetRequiredService<ICodeBossJobListener>();
                     return listener;
                 }, EverythingMatcher<JobKey>.AllJobs()); 
             }

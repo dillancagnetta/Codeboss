@@ -42,7 +42,7 @@ public class JobPulse(
         var quartsJobsToDelete = scheduledQuartzJobs.Where(jobKey => !activeJobs.Any(j => j.JobKey.ToString() == jobKey.Name));
         foreach (JobKey jobKey in quartsJobsToDelete)
         {
-            scheduler.DeleteJob( jobKey );
+            await scheduler.DeleteJob( jobKey, ct);
             jobsDeleted++;
         }
 
