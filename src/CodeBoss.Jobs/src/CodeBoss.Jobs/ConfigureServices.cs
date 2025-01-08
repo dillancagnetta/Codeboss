@@ -16,7 +16,7 @@ public static class ConfigureServices
         IConfiguration configuration,
         Type repo,
         bool productionMode = false,
-        IJobListener jobListener = null)
+        bool registeredJobListener = false)
     {
         if (repo == null)
         {
@@ -41,11 +41,14 @@ public static class ConfigureServices
                 .WithCronSchedule(cronExpression)
                 .WithDescription("Main CodeBoss Jobs Processor"));
             
-            if (jobListener != null)
+            if (registeredJobListener)
             {
-                q.AddJobListener(jobListener, EverythingMatcher<JobKey>.AllJobs()); 
+                q.AddJobListener(q =>
+                {
+                    var listener = q.GetRequiredService<IJobListener>();
+                    return listener;
+                }, EverythingMatcher<JobKey>.AllJobs()); 
             }
-            
         });
 
         services.AddQuartzHostedService(options =>
