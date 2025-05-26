@@ -24,8 +24,8 @@ namespace CodeBoss.MultiTenant
                         $"{builder.TenantProvider.Name} must implement ITenantsProvider<{typeof(TTenant).Name}>");
                 }
                 
-                services.AddSingleton(typeof(ITenantsProvider<TTenant>), builder.TenantProvider);
-                services.AddSingleton(typeof(ITenantProvider), builder.TenantProvider);
+                services.AddScoped(typeof(ITenantsProvider<TTenant>), builder.TenantProvider);
+                services.AddScoped(typeof(ITenantProvider), builder.TenantProvider);
 
                 return services;
             }
@@ -33,8 +33,8 @@ namespace CodeBoss.MultiTenant
             // Default ITenantProvider  is appsettings file
             // Only registers the service if no service of the same type is already registered
             // This allows for easy override if needed
-            services.TryAddSingleton<ITenantsProvider<ITenant>, FileTenantsProvider>();
-            services.TryAddSingleton<ITenantProvider, FileTenantsProvider>();
+            services.TryAddScoped<ITenantsProvider<ITenant>, FileTenantsProvider>();
+            services.TryAddScoped<ITenantProvider, FileTenantsProvider>();
             
             return services;
         }
