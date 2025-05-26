@@ -10,9 +10,9 @@ namespace CodeBoss.MultiTenant.Identification
     public class QueryStringTenantIdentificationService<T> : ITenantIdentificationService<T>
     {
         private readonly IHttpContextAccessor _accessor;
-        private readonly ITenantProvider<T> _provider;
+        private readonly ITenantsProvider<T> _provider;
 
-        public QueryStringTenantIdentificationService(IHttpContextAccessor accessor, ITenantProvider<T> provider)
+        public QueryStringTenantIdentificationService(IHttpContextAccessor accessor, ITenantsProvider<T> provider)
         {
             _accessor = accessor;
             _provider = provider;
