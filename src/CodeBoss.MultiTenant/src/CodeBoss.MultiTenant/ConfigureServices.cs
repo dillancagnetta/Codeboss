@@ -8,7 +8,7 @@ namespace CodeBoss.MultiTenant
 {
     public static class ConfigureServices
     {
-        public static IServiceCollection AddCodeBossMultiTenancy(this IServiceCollection services, IConfiguration configuration, Action<MultiTenancyOptionsBuilder> optionsAction = null)
+        public static IServiceCollection AddCodeBossMultiTenancy<TTenant>(this IServiceCollection services, IConfiguration configuration, Action<MultiTenancyOptionsBuilder> optionsAction = null)
         {
             services.Configure<MultiTenantOptions>(configuration.GetSection(nameof(MultiTenantOptions)));
 
@@ -17,8 +17,14 @@ namespace CodeBoss.MultiTenant
             {
                 var builder = new MultiTenancyOptionsBuilder();
                 optionsAction(builder);
-
-                services.AddSingleton(typeof(ITenantsProvider<>), builder.TenantProvider);
+                
+                if (!typeof(ITenantsProvider<TTenant>).IsAssignableFrom(builder.TenantProvider))
+                {
+                    throw new ArgumentException(
+                        $"{builder.TenantProvider.Name} must implement ITenantsProvider<{typeof(TTenant).Name}>");
+                }
+                
+                services.AddSingleton(typeof(ITenantsProvider<TTenant>), builder.TenantProvider);
                 services.AddSingleton(typeof(ITenantProvider), builder.TenantProvider);
 
                 return services;
