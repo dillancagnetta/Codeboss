@@ -19,6 +19,7 @@ namespace CodeBoss.MultiTenant
                 optionsAction(builder);
 
                 services.AddSingleton(typeof(ITenantsProvider<>), builder.TenantProvider);
+                services.AddSingleton(typeof(ITenantProvider), builder.TenantProvider);
 
                 return services;
             }
@@ -27,6 +28,8 @@ namespace CodeBoss.MultiTenant
             // Only registers the service if no service of the same type is already registered
             // This allows for easy override if needed
             services.TryAddSingleton<ITenantsProvider<ITenant>, FileTenantsProvider>();
+            services.TryAddSingleton<ITenantProvider, FileTenantsProvider>();
+            
             return services;
         }
     }
