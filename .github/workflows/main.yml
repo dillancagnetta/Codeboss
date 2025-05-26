@@ -25,7 +25,7 @@ jobs:
       
       - uses: actions/setup-dotnet@v1
         with:
-          dotnet-version: '8.0.x' # SDK Version to use; x will use the latest version of the 3.1 channel
+          dotnet-version: '9.0.x' # SDK Version to use; x will use the latest version of the 3.1 channel
       - run: dotnet build -c release      
 
       # Runs a single command using the runners shell

@@ -1,10 +1,9 @@
 ﻿namespace CodeBoss.MultiTenant
 {
-    public interface ITenantProvider
+    public interface ITenantProvider<out TTenant>
     {
         public bool Enabled { get; }
-        ITenant[] Tenants();
-        ITenant Get(string name);
-        ITenant CurrentTenant { get; set; }
+        TTenant[] Tenants();
+        TTenant Get(string name);
     }
 }

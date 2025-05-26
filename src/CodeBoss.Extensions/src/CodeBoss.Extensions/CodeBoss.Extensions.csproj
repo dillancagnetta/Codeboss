@@ -2,7 +2,7 @@
   <PropertyGroup>
     <Description>CodeBoss.Extensions</Description>
     <Authors>CodeBoss.co</Authors>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <LangVersion>Latest</LangVersion>
     <AssemblyName>CodeBoss.Extensions</AssemblyName>
     <Title>CodeBoss.Extensions</Title>

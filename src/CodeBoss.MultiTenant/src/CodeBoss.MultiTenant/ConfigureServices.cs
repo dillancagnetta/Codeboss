@@ -2,6 +2,7 @@
 using CodeBoss.MultiTenant.Providers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CodeBoss.MultiTenant
 {
@@ -17,13 +18,15 @@ namespace CodeBoss.MultiTenant
                 var builder = new MultiTenancyOptionsBuilder();
                 optionsAction(builder);
 
-                services.AddSingleton(typeof(ITenantProvider), builder.TenantProvider);
+                services.AddSingleton(typeof(ITenantProvider<>), builder.TenantProvider);
 
                 return services;
             }
 
             // Default ITenantProvider  is appsettings file
-            services.AddSingleton<ITenantProvider, FileTenantProvider>();
+            // Only registers the service if no service of the same type is already registered
+            // This allows for easy override if needed
+            services.TryAddSingleton<ITenantProvider<ITenant>, FileTenantProvider>();
             return services;
         }
     }

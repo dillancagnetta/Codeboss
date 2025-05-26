@@ -2,7 +2,7 @@
   <PropertyGroup>
     <Description>CodeBoss.AspNetCore</Description>
     <Authors>CodeBoss.co</Authors>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <LangVersion>Latest</LangVersion>
     <AssemblyName>CodeBoss.AspNetCore</AssemblyName>
     <Title>CodeBoss.AspNetCore</Title>

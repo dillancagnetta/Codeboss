@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 
 namespace CodeBoss.MultiTenant.Providers
 {
-    public class FileTenantProvider : ITenantProvider
+    public class FileTenantProvider : ITenantProvider<ITenant>
     {
         private readonly MultiTenantOptions _options;
 
@@ -12,6 +12,5 @@ namespace CodeBoss.MultiTenant.Providers
         public bool Enabled => _options.Enabled;
         public ITenant[] Tenants() => _options.Tenants;
         public ITenant Get(string name) => Tenants().FirstOrDefault(t => t.Name == name);
-        public ITenant CurrentTenant { get; set; }
     }
 }

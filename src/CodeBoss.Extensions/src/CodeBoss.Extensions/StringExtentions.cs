@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using Codeboss;
 
@@ -63,7 +64,7 @@ public static partial class Extensions
     {
         if (!source.IsNullOrEmpty())
         {
-            return source.Select(x => Guid.Parse(x));
+            return source.Select(Guid.Parse);
         }
 
         return new List<Guid>(0);
@@ -170,5 +171,39 @@ public static partial class Extensions
         {
             return null;
         }
+    }
+    
+    /// <summary>
+    /// Generate random digit code
+    /// </summary>
+    /// <param name="length">Length</param>
+    /// <returns>Result string</returns>
+    public static string GenerateRandomDigitCode(int length)
+    {
+        var str = string.Empty;
+        using var rng = RandomNumberGenerator.Create();
+        var byteArray = new byte[length];
+        rng.GetBytes(byteArray);
+        for (var i = 0; i < length; i++)
+            str = string.Concat(str, byteArray[i].ToString());
+
+        return str[..length];
+    }
+    
+    
+
+    /// <summary>
+    /// Verifies that a string is in valid e-mail format
+    /// </summary>
+    /// <param name="email">Email to verify</param>
+    /// <returns>true if the string is a valid e-mail address and false if it's not</returns>
+    public static bool IsValidEmail(this string email)
+    {
+        if (String.IsNullOrEmpty(email))
+            return false;
+
+        email = email.Trim();
+        var result = Regex.IsMatch(email, "^(?:[\\w\\!\\#\\$\\%\\&\\'\\*\\+\\-\\/\\=\\?\\^\\`\\{\\|\\}\\~]+\\.)*[\\w\\!\\#\\$\\%\\&\\'\\*\\+\\-\\/\\=\\?\\^\\`\\{\\|\\}\\~]+@(?:(?:(?:[a-zA-Z0-9](?:[a-zA-Z0-9\\-](?!\\.)){0,61}[a-zA-Z0-9]?\\.)+[a-zA-Z0-9](?:[a-zA-Z0-9\\-](?!$)){0,61}[a-zA-Z0-9]?)|(?:\\[(?:(?:[01]?\\d{1,2}|2[0-4]\\d|25[0-5])\\.){3}(?:[01]?\\d{1,2}|2[0-4]\\d|25[0-5])\\]))$", RegexOptions.IgnoreCase);
+        return result;
     }
 }

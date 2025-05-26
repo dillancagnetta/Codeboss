@@ -3,8 +3,8 @@
     /// <summary>
     /// Determines which tenant is currently active
     /// </summary>
-    public interface ITenantIdentificationService
+    public interface ITenantIdentificationService<out TTenant>
     {
-        ITenant CurrentTenant();
+        TTenant CurrentTenant();
     }
 }
