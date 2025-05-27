@@ -3,7 +3,7 @@ echo Executing after success scripts on branch ${GITHUB_REF##*/}
 echo Triggering Nuget package build
 
 cd src/CodeBoss.MultiTenant/src/CodeBoss.MultiTenant
-dotnet pack -c release /p:PackageVersion=8.0.$GITHUB_RUN_NUMBER --no-restore -o .
+dotnet pack -c release /p:PackageVersion=9.0.$GITHUB_RUN_NUMBER --no-restore -o .
 
 echo Uploading Codeboss.MultiTenant package to Nuget using branch ${GITHUB_REF##*/}
 
