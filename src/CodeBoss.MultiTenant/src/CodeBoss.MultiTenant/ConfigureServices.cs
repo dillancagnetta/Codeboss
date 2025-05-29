@@ -8,7 +8,10 @@ namespace CodeBoss.MultiTenant
 {
     public static class ConfigureServices
     {
-        public static IServiceCollection AddCodeBossMultiTenancy<TTenant>(this IServiceCollection services, IConfiguration configuration, Action<MultiTenancyOptionsBuilder> optionsAction = null)
+        public static IServiceCollection AddCodeBossMultiTenancy<TTenant>(
+            this IServiceCollection services,
+            IConfiguration configuration,
+            Action<MultiTenancyOptionsBuilder> optionsAction = null) where TTenant : ITenant 
         {
             services.Configure<MultiTenantOptions>(configuration.GetSection(nameof(MultiTenantOptions)));
 
@@ -24,8 +27,9 @@ namespace CodeBoss.MultiTenant
                         $"{builder.TenantProvider.Name} must implement ITenantsProvider<{typeof(TTenant).Name}>");
                 }
                 
-                services.AddScoped(typeof(ITenantsProvider<TTenant>), builder.TenantProvider);
-                services.AddScoped(typeof(ITenantProvider), builder.TenantProvider);
+                services.AddScoped(typeof(ITenantsProvider<TTenant>), builder.TenantsProvider);
+                // This singleton to provide the tenant to the application
+                services.AddSingleton(typeof(ITenantProvider), builder.TenantProvider);
 
                 return services;
             }
@@ -34,7 +38,7 @@ namespace CodeBoss.MultiTenant
             // Only registers the service if no service of the same type is already registered
             // This allows for easy override if needed
             services.TryAddScoped<ITenantsProvider<ITenant>, FileTenantsProvider>();
-            services.TryAddScoped<ITenantProvider, FileTenantsProvider>();
+            // services.TryAddScoped<ITenantProvider, FileTenantsProvider>();
             
             return services;
         }

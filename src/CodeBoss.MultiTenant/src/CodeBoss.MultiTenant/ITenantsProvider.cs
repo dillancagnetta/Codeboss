@@ -1,6 +1,6 @@
 ﻿namespace CodeBoss.MultiTenant;
 
-public interface ITenantsProvider<out TTenant> : ITenantProvider
+public interface ITenantsProvider<out TTenant> where TTenant : ITenant
 {
     public bool Enabled { get; }
     TTenant[] Tenants();
