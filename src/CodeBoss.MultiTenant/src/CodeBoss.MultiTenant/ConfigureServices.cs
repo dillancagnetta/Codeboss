@@ -28,6 +28,8 @@ namespace CodeBoss.MultiTenant
                 }
                 
                 services.AddScoped(typeof(ITenantsProvider<TTenant>), builder.TenantsProvider);
+                // This singleton to provide the tenant to the application
+                // services.AddSingleton<ITenantProvider, DefaultTenantProvider>();
 
                 return services;
             }
@@ -36,7 +38,6 @@ namespace CodeBoss.MultiTenant
             // Only registers the service if no service of the same type is already registered
             // This allows for easy override if needed
             services.TryAddScoped<ITenantsProvider<ITenant>, FileTenantsProvider>();
-            
             // This singleton to provide the tenant to the application
             services.AddSingleton<ITenantProvider, DefaultTenantProvider>();
             

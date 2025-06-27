@@ -19,7 +19,7 @@ namespace Codeboss.Results
 
     public class OperationResult : IOperationResult
     {
-        public bool IsSuccess { get; protected set; }
+        public bool IsSuccess { get; set; }
         public List<Error> Errors { get; }
 
         public OperationResult(string error) : this(new Error(error)) { }
