@@ -2,11 +2,12 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
+using Codeboss.Types;
 using CronExpressionDescriptor;
 
 namespace CodeBoss.Jobs.Model
 {
-    public class ServiceJob
+    public class ServiceJob : IAggregateRoot<int>
     {
         [Key]
         public int Id { get; set; }
