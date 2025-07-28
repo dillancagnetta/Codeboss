@@ -28,6 +28,7 @@ namespace CodeBoss.MultiTenant
                 }
                 
                 services.AddScoped(typeof(ITenantsProvider<TTenant>), builder.TenantsProvider);
+                services.AddScoped(typeof(ISimpleTenantsProvider), builder.TenantsProvider);
                 // This singleton to provide the tenant to the application
                 // services.AddSingleton<ITenantProvider, DefaultTenantProvider>();
 

@@ -16,5 +16,12 @@ namespace CodeBoss.Jobs.Abstractions
         Task ClearStatusesAsync(ServiceJob job, CancellationToken ct = default);
         /*Task UpdateLastStatusMessageAsync(ServiceJob job, string statusMessage, CancellationToken ct = default);
         Task<int> SaveChangesAsync(CancellationToken ct = default);*/
+        
+        // tenant-aware overloads
+        Task<IEnumerable<ServiceJob>> GetActiveJobsAsync(int? tenantId, CancellationToken ct = default);
+        Task<ServiceJob> GetByIdAsync(int id, int? tenantId, CancellationToken ct = default);
+        Task UpdateLastStatusMessageAsync(int serviceJobId, int? tenantId, string statusMessage, CancellationToken ct = default);
+        Task UpdateStatusMessagesAsync(int serviceJobId, int? tenantId, string message, string status, CancellationToken ct = default);
+        Task ClearStatusesAsync(ServiceJob job, int? tenantId, CancellationToken ct = default);
     }
 }

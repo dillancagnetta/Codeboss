@@ -16,7 +16,8 @@ public static class ConfigureServices
         IConfiguration configuration,
         Type repo,
         bool productionMode = false,
-        bool registeredJobListener = false)
+        bool registeredJobListener = false,
+        bool isMultiTenantMode = false)
     {
         if (repo == null)
         {
@@ -34,13 +35,24 @@ public static class ConfigureServices
             q.UseSimpleTypeLoader();
             q.UseInMemoryStore();
             q.UseDefaultThreadPool(tp => tp.MaxConcurrency = 10);
-                
-            q.ScheduleJob<JobPulse>(trigger => trigger
-                .WithIdentity("JobPulse" , "System")
-                .StartNow()
-                .WithCronSchedule(cronExpression)
-                .WithDescription("Main CodeBoss Jobs Processor"));
             
+            if (isMultiTenantMode)
+            {
+                q.ScheduleJob<MultiTenantJobPulse>(trigger => trigger
+                    .WithIdentity("MultiTenantJobPulse" , "System")
+                    .StartNow()
+                    .WithCronSchedule(cronExpression)
+                    .WithDescription("Main MultiTenant CodeBoss Jobs Processor"));
+            }
+            else
+            {
+                q.ScheduleJob<JobPulse>(trigger => trigger
+                    .WithIdentity("JobPulse" , "System")
+                    .StartNow()
+                    .WithCronSchedule(cronExpression)
+                    .WithDescription("Main CodeBoss Jobs Processor"));
+            }
+           
             if (registeredJobListener)
             {
                 q.AddJobListener(q =>

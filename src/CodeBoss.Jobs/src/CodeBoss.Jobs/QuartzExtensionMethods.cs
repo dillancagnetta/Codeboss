@@ -16,4 +16,13 @@ public static class QuartzExtensionMethods
         var jobType = Type.GetType( $"{job.Class}, {job.Assembly}", false, true );
         return jobType;
     }
+    
+    public static int? GetTenantIdFromQuartz(this Quartz.IJobExecutionContext context)
+    {
+        if (context.JobDetail.JobDataMap.ContainsKey("TenantId"))
+        {
+            return context.JobDetail.JobDataMap.GetIntValue("TenantId");
+        }
+        return null;
+    }
 }

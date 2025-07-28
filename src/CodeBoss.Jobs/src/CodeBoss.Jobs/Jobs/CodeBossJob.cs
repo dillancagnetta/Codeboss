@@ -10,6 +10,9 @@ namespace CodeBoss.Jobs.Jobs
 {
     public abstract class CodeBossJob(IServiceJobRepository repository, ILogger<CodeBossJob> logger) : ICodeBossJob
     {
+        protected readonly IServiceJobRepository Repository = repository;
+        protected readonly ILogger<CodeBossJob> Logger = logger;
+        
         /// <summary>
         /// Gets the job identifier.
         /// </summary>
@@ -18,6 +21,12 @@ namespace CodeBoss.Jobs.Jobs
         {
             return ServiceJobId;
         }
+
+        /// <summary>
+        /// Gets the TenantId.
+        /// </summary>
+        /// <value>The TenantId context.</value>
+        public int? TenantId { get; private set; }
 
         /// <summary>
         /// Gets the service job identifier.
@@ -48,12 +57,11 @@ namespace CodeBoss.Jobs.Jobs
         /// </summary>
         /// <value>The result.</value>
         public string Result { get; set; }
-        
-        private readonly IServiceJobRepository _repository = repository;
+
 
         Task Quartz.IJob.Execute( Quartz.IJobExecutionContext context )
         {
-            logger?.LogInformation("Executing quartz job: {0}", ServiceJobName);
+            Logger?.LogInformation("Executing quartz job: {0}", ServiceJobName);
             return ExecuteInternal(context);
         }
         
@@ -68,29 +76,30 @@ namespace CodeBoss.Jobs.Jobs
 
             try
             {
-                logger?.LogInformation("Executing job: {0} at [{1}]", ServiceJobName, DateTime.Now);
+                Logger?.LogInformation("Executing job: {0} at [{1}]", ServiceJobName, DateTime.Now);
                 await Execute(context.CancellationToken);
                 //await repository.SaveChangesAsync(context.CancellationToken);
-                logger?.LogInformation("Executing job complete: {0} at [{1}]", ServiceJobName, DateTime.Now);
+                Logger?.LogInformation("Executing job complete: {0} at [{1}]", ServiceJobName, DateTime.Now);
             }
             catch (Exception e)
             {
-                logger?.LogError(e.Message);
+                Logger?.LogError(e.Message);
                 throw;
             }
-
         }
 
         private async Task InitializeFromJobContext(IJobExecutionContext context)
         {
             var serviceJobId = context.GetJobIdFromQuartz();
             Scheduler = context.Scheduler;
+            TenantId = context.GetTenantIdFromQuartz();
+            
             // Skip JobPulse job
             if (!context.JobDetail.Key.Group.Equals("System"))
             {
                 ServiceJobId = serviceJobId;
-                ServiceJob = await _repository.GetByIdAsync( serviceJobId );
-                logger?.LogInformation("Initialized From JobContext: {0} with Id: {1}", ServiceJobName, serviceJobId);
+                ServiceJob = await Repository.GetByIdAsync( serviceJobId, TenantId );
+                Logger?.LogInformation("Initialized From JobContext: {0} with Id: {1}", ServiceJobName, serviceJobId);
             }
         }
         
@@ -99,11 +108,11 @@ namespace CodeBoss.Jobs.Jobs
         /// NOTE: This method has a read and a write database operation and also writes to the Logger with DEBUG level logging.
         /// </summary>
         /// <param name="status">The status message.</param>
-        protected async Task UpdateLastStatusMessage(string status )
+        protected async Task UpdateLastStatusMessage(string status)
         {
             Result = status;
 
-            await _repository.UpdateLastStatusMessageAsync(ServiceJobId, status);
+            await Repository.UpdateLastStatusMessageAsync(ServiceJobId, TenantId, status);
         }
         
         
@@ -111,11 +120,11 @@ namespace CodeBoss.Jobs.Jobs
         /// Updates the last status message.
         /// NOTE: This method has a read and a write database operation and also writes to the Logger with DEBUG level logging.
         /// </summary>
-        protected async Task UpdateStatusMessagesAsync(string message, string status )
+        protected async Task UpdateStatusMessagesAsync(string message, string status)
         {
             Result = status;
 
-            await _repository.UpdateStatusMessagesAsync(ServiceJobId, message, status);
+            await Repository.UpdateStatusMessagesAsync(ServiceJobId, TenantId, message, status);
         }
     }
 }

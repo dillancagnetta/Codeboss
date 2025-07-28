@@ -34,7 +34,7 @@ public class JobPulse(
         int jobsScheduleUpdated = 0;
 
         var scheduler = Scheduler;
-        var activeJobs = await repository.GetActiveJobsAsync(ct);
+        var activeJobs = await Repository.GetActiveJobsAsync(ct);
         var scheduledQuartzJobs = (await scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup(), ct))
             .Where(jobKey => jobKey.Group != "System").ToList();
 
@@ -67,7 +67,7 @@ public class JobPulse(
                 }
 
                 // if the last status was an error, but we now loaded successful, clear the error
-                if (job.LastStatus == errorSchedulingStatus) await repository.ClearStatusesAsync(job, ct);
+                if (job.LastStatus == errorSchedulingStatus) await Repository.ClearStatusesAsync(job, ct);
             }
             catch (Exception ex)
             {
@@ -116,7 +116,7 @@ public class JobPulse(
 
                     if (activeJob.LastStatus == errorReschedulingStatus)
                     {
-                        await repository.ClearStatusesAsync(activeJob, ct);
+                        await Repository.ClearStatusesAsync(activeJob, ct);
                     }
                     
                     if (deletedSuccessfully)
@@ -144,15 +144,15 @@ public class JobPulse(
             Result += (Result.IsNullOrEmpty() ? "" : " and ") + $"Updated {jobsScheduleUpdated} schedule(s)";
         }
         
-        logger.LogInformation(Result);
+        Logger.LogInformation(Result);
     }
 
     private async Task HandleAndLogError(
         ServiceJob job, string errorStatus, Exception ex, CancellationToken ct)
     {
-        logger.LogError(ex.Message);
+        Logger.LogError(ex.Message);
         // create a friendly error message
         string message = string.Format("Error scheduling the job: {0}.\n\n{2}", job.Name, job.Assembly, ex.Message);
-        await repository.UpdateStatusMessagesAsync(job.Id, message, errorStatus, ct);
+        await Repository.UpdateStatusMessagesAsync(job.Id, message, errorStatus, ct);
     }
 }
