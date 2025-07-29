@@ -12,6 +12,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.travis.yml = .travis.yml
 		.github\workflows\main.yml = .github\workflows\main.yml
 		scripts\pack.sh = scripts\pack.sh
+		Directory.Packages.props = Directory.Packages.props
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeBoss.Extensions", "src\CodeBoss.Extensions\src\CodeBoss.Extensions\CodeBoss.Extensions.csproj", "{4634A1C2-B9FA-428A-8A3F-5F7179BA0DAF}"
@@ -29,6 +30,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeBoss.Jobs", "src\CodeBoss.Jobs\src\CodeBoss.Jobs\CodeBoss.Jobs.csproj", "{E2EC9697-CD22-49A0-92BD-37A0850B32C6}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeBoss.Extensions.Tests", "tests\CodeBoss.Extensions.Tests\CodeBoss.Extensions.Tests.csproj", "{C419F5F3-92F2-4C1C-80B7-44252E3157C3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeBoss.Jobs.Tests", "tests\CodeBoss.Jobs.Tests\CodeBoss.Jobs.Tests.csproj", "{427CE40C-A40C-4C44-B9D5-2CE7DA4ABB2D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -68,6 +71,10 @@ Global
 		{C419F5F3-92F2-4C1C-80B7-44252E3157C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C419F5F3-92F2-4C1C-80B7-44252E3157C3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C419F5F3-92F2-4C1C-80B7-44252E3157C3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{427CE40C-A40C-4C44-B9D5-2CE7DA4ABB2D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{427CE40C-A40C-4C44-B9D5-2CE7DA4ABB2D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{427CE40C-A40C-4C44-B9D5-2CE7DA4ABB2D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{427CE40C-A40C-4C44-B9D5-2CE7DA4ABB2D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -81,6 +88,7 @@ Global
 		{0CB36332-3B8F-4992-B634-79A5C2A6DFB0} = {F218F777-B2A2-43D4-8541-F3DD10D83CE0}
 		{E2EC9697-CD22-49A0-92BD-37A0850B32C6} = {F218F777-B2A2-43D4-8541-F3DD10D83CE0}
 		{C419F5F3-92F2-4C1C-80B7-44252E3157C3} = {E60F2801-697D-41F7-B4F0-665185B4BE29}
+		{427CE40C-A40C-4C44-B9D5-2CE7DA4ABB2D} = {E60F2801-697D-41F7-B4F0-665185B4BE29}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {123A5DE1-5C91-4AC3-8911-F09D27B0609A}

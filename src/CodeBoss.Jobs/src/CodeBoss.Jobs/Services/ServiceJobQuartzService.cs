@@ -71,7 +71,7 @@ public class ServiceJobQuartzService(IDateTimeProvider dateTimeProvider) : IServ
             .WithIdentity(triggerKey)
             .WithCronSchedule(cronExpression, x =>
             {
-                x.InTimeZone(TimeZoneInfo.Utc);
+                x.InTimeZone( dateTimeProvider?.TimeZoneInfo ?? TimeZoneInfo.Utc );
                 x.WithMisfireHandlingInstructionDoNothing();
             })
             .StartNow()
@@ -118,6 +118,6 @@ public class ServiceJobQuartzService(IDateTimeProvider dateTimeProvider) : IServ
     /// <returns>bool.</returns>
     public static bool IsValidCronDescription( string cronExpression )
     {
-        return Quartz.CronExpression.IsValidExpression( cronExpression );
+        return cronExpression.IsValidCronDescription();
     }
 }

@@ -11,6 +11,7 @@ using Quartz.Impl.Matchers;
 
 namespace CodeBoss.Jobs.Jobs;
 
+[DisallowConcurrentExecution]
 public class JobPulse(
     IServiceJobRepository repository, 
     IServiceJobService service,

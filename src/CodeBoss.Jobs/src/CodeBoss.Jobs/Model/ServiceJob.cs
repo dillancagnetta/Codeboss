@@ -130,9 +130,9 @@ namespace CodeBoss.Jobs.Model
         public virtual string CronDescription => ExpressionDescriptor.GetDescription( this.CronExpression, new Options { ThrowExceptionOnParseError = false } );
 
         /// <summary>
-        /// The never scheduled cron expression. This will only fire the job in the year 2200. This is useful for jobs
+        /// The never scheduled cron expression. This will only fire the job in the year 2099. This is useful for jobs
         /// that should be run only on demand, such as rebuilding Streak data.
         /// </summary>
-        public static string NeverScheduledCronExpression = "0 0 0 1 1 ? 2200";
+        public static string NeverScheduledCronExpression = "0 0 0 1 1 ? 2099";
     }
 }

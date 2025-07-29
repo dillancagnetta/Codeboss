@@ -25,4 +25,9 @@ public static class QuartzExtensionMethods
         }
         return null;
     }
+    
+    public static bool IsValidCronDescription( this string cronExpression )
+    {
+        return Quartz.CronExpression.IsValidExpression( cronExpression );
+    }
 }

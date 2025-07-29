@@ -14,29 +14,25 @@ public static class ConfigureServices
     public static IServiceCollection AddCodeBossJobs(
         this IServiceCollection services,
         IConfiguration configuration,
-        Type repo,
-        bool productionMode = false,
-        bool registeredJobListener = false,
-        bool isMultiTenantMode = false)
+        Action<CodeBossJobsOptions> configure)
     {
-        if (repo == null)
-        {
-            throw new ArgumentNullException(nameof(repo), 
-                "Repository type cannot be null and must implement IServiceJobRepository interface." +
-                " Please provide a valid repository type.");
-        }
+        var options = new CodeBossJobsOptions();
+        configure?.Invoke(options);
+        
+        ArgumentNullException.ThrowIfNull(options.Repo, "Repository type cannot be null and must implement IServiceJobRepository interface." +
+                                                        " Please provide a valid repository type.");
         
         services.Configure<QuartzOptions>(configuration.GetSection(nameof(QuartzOptions)));
 
         // in test mode, run every minute, otherwise run every 15mins
-        var cronExpression = productionMode ? "0 0/15 * * * ?" : "0 * * ? * *" ;
+        var cronExpression = options.ProductionMode ? "0 0/15 * * * ?" : "0 * * ? * *" ;
         services.AddQuartz(q =>
         {
             q.UseSimpleTypeLoader();
             q.UseInMemoryStore();
             q.UseDefaultThreadPool(tp => tp.MaxConcurrency = 10);
             
-            if (isMultiTenantMode)
+            if (options.IsMultiTenantMode)
             {
                 q.ScheduleJob<MultiTenantJobPulse>(trigger => trigger
                     .WithIdentity("MultiTenantJobPulse" , "System")
@@ -53,7 +49,7 @@ public static class ConfigureServices
                     .WithDescription("Main CodeBoss Jobs Processor"));
             }
            
-            if (registeredJobListener)
+            if (options.RegisteredJobListener)
             {
                 q.AddJobListener(q =>
                 {
@@ -63,13 +59,13 @@ public static class ConfigureServices
             }
         });
 
-        services.AddQuartzHostedService(options =>
+        services.AddQuartzHostedService(opt =>
         {
-            options.WaitForJobsToComplete = true;
+            opt.WaitForJobsToComplete = true;
         });
         
         // Allows specifying custom IServiceJobRepository implementation
-        services.AddTransient(typeof(IServiceJobRepository), repo);
+        services.AddTransient(typeof(IServiceJobRepository), options.Repo);
         services.AddScoped<IServiceJobService, ServiceJobQuartzService>();
 
         return services;
