@@ -5,6 +5,7 @@ public interface ITenantsProvider<out TTenant> : ISimpleTenantsProvider where TT
     public bool Enabled { get; }
     TTenant[] Tenants();
     TTenant Get(string name);
+    TTenant Get(int id);
 }
 
 public interface ITenantProvider

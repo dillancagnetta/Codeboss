@@ -12,6 +12,8 @@ namespace CodeBoss.MultiTenant.Providers
         public bool Enabled => _options.Enabled;
         public ITenant[] Tenants() => _options.Tenants;
         public ITenant Get(string name) => Tenants().FirstOrDefault(t => t.Name == name);
+        public ITenant Get(int id) => Tenants().FirstOrDefault(t => t.Id == id);
+
         public ITenant CurrentTenant { get; set; }
     }
 }
