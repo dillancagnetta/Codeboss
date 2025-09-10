@@ -18,7 +18,7 @@ namespace CodeBoss.AspNetCore.Startup
 
         public int OrderNumber { get; } = -1;
 
-        public async Task InitializeAsync()
+        public async Task InitializeAsync(int? tenantId = null)
         {
             _logger.LogInformation($"Startup Initializer found: '{_initializers.Count()}', initializers to run.");
 
@@ -26,7 +26,7 @@ namespace CodeBoss.AspNetCore.Startup
             {
                 // Returns the Task i.e. does not await the result
                 _logger.LogInformation($"\t - Running Initializer: '{initializer.GetType().Name}'.");
-                await initializer.InitializeAsync();
+                await initializer.InitializeAsync(tenantId);
                 _logger.LogInformation($"\t - Completed Initializer: '{initializer.GetType().Name}'.");
             }
         }
