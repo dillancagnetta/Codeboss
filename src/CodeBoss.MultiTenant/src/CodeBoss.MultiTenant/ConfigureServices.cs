@@ -11,7 +11,7 @@ namespace CodeBoss.MultiTenant
         public static IServiceCollection AddCodeBossMultiTenancy<TTenant>(
             this IServiceCollection services,
             IConfiguration configuration,
-            Action<MultiTenancyOptionsBuilder> optionsAction = null) where TTenant : ITenant 
+            Action<MultiTenancyOptionsBuilder>? optionsAction = null) where TTenant : ITenant 
         {
             services.Configure<MultiTenantOptions>(configuration.GetSection(nameof(MultiTenantOptions)));
 
@@ -34,11 +34,7 @@ namespace CodeBoss.MultiTenant
 
                 return services;
             }
-
-            // Default ITenantProvider  is appsettings file
-            // Only registers the service if no service of the same type is already registered
-            // This allows for easy override if needed
-            services.TryAddScoped<ITenantsProvider<ITenant>, FileTenantsProvider>();
+            
             // This singleton to provide the tenant to the application
             services.AddSingleton<ITenantProvider, DefaultTenantProvider>();
             

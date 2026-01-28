@@ -7,10 +7,10 @@ namespace CodeBoss.MultiTenant
         [Key]
         public int Id { get; set; }
 
-        [MaxLength(100)]
-        public string Name { get; set; }
+        [MaxLength(100)] 
+        public string Name { get; set; } = string.Empty;
 
         [MaxLength(500)]
-        public string ConnectionString { get; set; }
+        public string ConnectionString { get; set; } = string.Empty;
     }
 }

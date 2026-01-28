@@ -4,13 +4,13 @@ public interface ITenantsProvider<out TTenant> : ISimpleTenantsProvider where TT
 {
     public bool Enabled { get; }
     TTenant[] Tenants();
-    TTenant Get(string name);
-    TTenant Get(int id);
+    TTenant? Get(string name);
+    TTenant? Get(int id);
 }
 
 public interface ITenantProvider
 {
-    ITenant CurrentTenant { get; set; }
+    ITenant? CurrentTenant { get; set; }
 }
 
 public interface ISimpleTenantsProvider

@@ -9,6 +9,7 @@
     <PackageId>CodeBoss.MultiTenant</PackageId>
     <PackageTags>CodeBoss.MultiTenant</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Nullable>enable</Nullable> 
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Http" />
