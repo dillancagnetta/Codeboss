@@ -81,14 +81,9 @@ namespace CodeBoss.Extensions
         /// <param name="condensed">if set to <c>true</c> [condensed].</param>
         /// <param name="includeTime">if set to <c>true</c> [include time].</param>
         /// <returns></returns>
-        public static string ToElapsedString(this DateTime? dateTime, bool condensed = false, bool includeTime = true)
+        public static string ToElapsedString(this DateTime? dateTime, IDateTimeProvider dateTimeProvider, bool condensed = false, bool includeTime = true)
         {
-            if(dateTime.HasValue)
-            {
-                return ToElapsedString(dateTime.Value, condensed, includeTime);
-            }
-
-            return string.Empty;
+            return dateTime?.ToElapsedString( dateTimeProvider, condensed, includeTime ) ?? string.Empty;
         }
 
         /// <summary>
@@ -158,14 +153,113 @@ namespace CodeBoss.Extensions
         /// <param name="dateTime">the DateTime to convert to relative time.</param>
         /// <param name="maxDays">maximum number of days before formatting in FB date-time format (ex. November 5, 2011 at 1:57pm)</param>
         /// <returns></returns>
-        public static string ToRelativeDateString(this DateTime? dateTime, int? maxDays = null)
+        public static string ToRelativeDateString(this DateTime? dateTime, IDateTimeProvider provider, int? maxDays = null)
         {
-            if(dateTime.HasValue)
+            return dateTime?.ToRelativeDateString( provider, maxDays ) ?? string.Empty;
+        }
+        
+        /// <summary>
+        /// Returns a string in relative format (x seconds ago, x minutes ago, about an hour ago, in x seconds,
+        /// in x minutes, in about an hour, etc.) or if time difference is greater than max days in long format (February
+        /// 13 at 11:28am or November 5, 2011 at 1:57pm).
+        /// </summary>
+        /// <param name="dateTime">the datetime to convert to relative time.</param>
+        /// <param name="maxDays">maximum number of days before formatting in long format (ex. November 5, 2011 at 1:57pm) </param>
+        /// <returns></returns>
+        public static string ToRelativeDateString( this DateTime dateTime, IDateTimeProvider provider, int? maxDays = null )
+        {
+            try
             {
-                return dateTime.ToRelativeDateString(maxDays);
-            }
+                DateTime now = provider.Now;
 
-            return string.Empty;
+                string nowText = "just now";
+                string format = "{0} ago";
+                TimeSpan timeSpan = now - dateTime;
+                if ( dateTime > now )
+                {
+                    nowText = "now";
+                    format = "in {0}";
+                    timeSpan = dateTime - now;
+                }
+
+                double seconds = timeSpan.TotalSeconds;
+                double minutes = timeSpan.TotalMinutes;
+                double hours = timeSpan.TotalHours;
+                double days = timeSpan.TotalDays;
+                double weeks = days / 7;
+                double months = days / 30;
+                double years = days / 365;
+
+                // Just return in long format if max days has passed.
+                if ( maxDays.HasValue && days > maxDays )
+                {
+                    if ( now.Year == dateTime.Year )
+                    {
+                        return dateTime.ToString( @"MMMM d a\t h:mm tt" );
+                    }
+                    else
+                    {
+                        return dateTime.ToString( @"MMMM d, yyyy a\t h:mm tt" );
+                    }
+                }
+
+                if ( Math.Round( seconds ) < 5 )
+                {
+                    return nowText;
+                }
+                else if ( minutes < 1.0 )
+                {
+                    return string.Format( format, Math.Floor( seconds ) + " seconds" );
+                }
+                else if ( Math.Floor( minutes ) == 1 )
+                {
+                    return string.Format( format, "1 minute" );
+                }
+                else if ( hours < 1.0 )
+                {
+                    return string.Format( format, Math.Floor( minutes ) + " minutes" );
+                }
+                else if ( Math.Floor( hours ) == 1 )
+                {
+                    return string.Format( format, "about an hour" );
+                }
+                else if ( days < 1.0 )
+                {
+                    return string.Format( format, Math.Floor( hours ) + " hours" );
+                }
+                else if ( Math.Floor( days ) == 1 )
+                {
+                    return string.Format( format, "1 day" );
+                }
+                else if ( weeks < 1 )
+                {
+                    return string.Format( format, Math.Floor( days ) + " days" );
+                }
+                else if ( Math.Floor( weeks ) == 1 )
+                {
+                    return string.Format( format, "1 week" );
+                }
+                else if ( months < 3 )
+                {
+                    return string.Format( format, Math.Floor( weeks ) + " weeks" );
+                }
+                else if ( months <= 12 )
+                {
+                    return string.Format( format, Math.Floor( months ) + " months" );
+                }
+                else if ( Math.Floor( years ) <= 1 )
+                {
+                    return string.Format( format, "1 year" );
+                }
+                else
+                {
+                    return string.Format( format, Math.Floor( years ) + " years" );
+                }
+            }
+            catch ( Exception )
+            {
+            }
+            return "";
         }
 
         /// <summary>
