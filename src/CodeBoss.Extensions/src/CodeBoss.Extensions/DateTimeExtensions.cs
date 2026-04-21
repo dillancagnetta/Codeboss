@@ -159,18 +159,29 @@ namespace CodeBoss.Extensions
         }
         
         /// <summary>
+        /// Returns  a string in FB style relative format using UTC as now
+        /// </summary>
+        /// <param name="dateTime"></param>
+        /// <returns></returns>
+        public static string ToRelativeDateStringUTC(this DateTime? dateTime)
+        {
+            return dateTime?.ToRelativeDateString( null ) ?? string.Empty;
+        }
+
+        /// <summary>
         /// Returns a string in relative format (x seconds ago, x minutes ago, about an hour ago, in x seconds,
         /// in x minutes, in about an hour, etc.) or if time difference is greater than max days in long format (February
         /// 13 at 11:28am or November 5, 2011 at 1:57pm).
         /// </summary>
         /// <param name="dateTime">the datetime to convert to relative time.</param>
+        /// <param name="provider"></param>
         /// <param name="maxDays">maximum number of days before formatting in long format (ex. November 5, 2011 at 1:57pm) </param>
         /// <returns></returns>
-        public static string ToRelativeDateString( this DateTime dateTime, IDateTimeProvider provider, int? maxDays = null )
+        public static string ToRelativeDateString( this DateTime dateTime, IDateTimeProvider provider = null, int? maxDays = null )
         {
             try
             {
-                DateTime now = provider.Now;
+                DateTime now = provider?.Now ?? DateTime.UtcNow;
 
                 string nowText = "just now";
                 string format = "{0} ago";
