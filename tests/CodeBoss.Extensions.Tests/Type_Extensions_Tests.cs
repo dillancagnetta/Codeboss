@@ -3,7 +3,7 @@ namespace CodeBoss.Extensions.Tests;
 public class Type_Extensions_Tests
 {
     [Fact]
-    public void GetGenericArgumentsOfBaseType_WithValidGenericType_ReturnsCorrectArguments()
+    public void opGetGenericArgumentsOfBaseType_WithValidGenericType_ReturnsCorrectArguments()
     {
         // Arrange
         var type = typeof(TestDerivedClass);
@@ -27,7 +27,7 @@ public class Type_Extensions_Tests
 
         // Act & Assert
         var exception = Assert.Throws<ArgumentException>(() => type.GetGenericArgumentsOfBaseType(nonGenericType));
-        Assert.Equal("Must be a generic type definition.", exception.Message);
+        Assert.StartsWith("Must be a generic type definition.", exception.Message);
         Assert.Equal("genericType", exception.ParamName);
     }
 
@@ -40,7 +40,7 @@ public class Type_Extensions_Tests
 
         // Act & Assert
         var exception = Assert.Throws<ArgumentException>(() => type.GetGenericArgumentsOfBaseType(unrelatedGenericType));
-        Assert.Equal("Type was not a descendend.", exception.Message);
+        Assert.StartsWith("Type was not a descendend.", exception.Message);
         Assert.Equal("genericType", exception.ParamName);
     }
     

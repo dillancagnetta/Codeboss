@@ -2,13 +2,13 @@
 echo Executing after success scripts on branch ${GITHUB_REF##*/}
 echo Triggering Nuget package build
 
-cd src/CodeBoss.CQRS/src/CodeBoss.CQRS
+cd src/CodeBoss.Logging/src/CodeBoss.Logging
 dotnet pack -c release /p:PackageVersion=9.0.$GITHUB_RUN_NUMBER --no-restore -o .
 
-echo Uploading Codeboss.CQRS package to Nuget using branch ${GITHUB_REF##*/}
+echo Uploading Codeboss.Logging package to Nuget using branch ${GITHUB_REF##*/}
 
 case "${GITHUB_REF##*/}" in
   "master")
-    dotnet nuget push *.nupkg -k $NUGET_API_KEY -s https://api.nuget.org/v3/index.json
+    dotnet nuget push *.nupkg -k $NUGET_API_KEY -s https://api.nuget.org/v3/index.json --skip-duplicate
     ;;
 esac
