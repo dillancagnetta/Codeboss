@@ -13,9 +13,9 @@ namespace CodeBoss.Jobs.Jobs;
 
 [DisallowConcurrentExecution]
 public class JobPulse(
-    IServiceJobRepository repository, 
+    IServiceJobRepository repository,
     IServiceJobService service,
-    ILogger<CodeBossJob> logger) : CodeBossJob(repository, logger)
+    ILogger<JobPulse> logger) : CodeBossJob(repository, logger)
 {
     public override async Task Execute(CancellationToken ct = default)
     {
@@ -90,6 +90,7 @@ public class JobPulse(
             }
 
             bool rescheduleJob = false;
+            bool jobTypeChanged = false;
 
             // fix up the schedule if it has changed
             if (activeJob.CronExpression != jobCronTrigger.CronExpressionString) rescheduleJob = true;
@@ -101,7 +102,11 @@ public class JobPulse(
 
                 if (scheduledJobDetail != null && activeJobType != null)
                 {
-                    if (scheduledJobDetail.JobType != activeJobType) rescheduleJob = true;
+                    if (scheduledJobDetail.JobType != activeJobType)
+                    {
+                        rescheduleJob = true;
+                        jobTypeChanged = true;
+                    }
                 }
             }
 
@@ -111,18 +116,28 @@ public class JobPulse(
                 try
                 {
                     ITrigger newJobTrigger = service.BuildQuartzTrigger(activeJob);
-                    bool deletedSuccessfully = await scheduler.DeleteJob(jobKey, ct);
-                    await scheduler.RescheduleJob(jobCronTrigger.Key, newJobTrigger, ct);
+
+                    if (jobTypeChanged)
+                    {
+                        // job class changed: replace job detail + trigger
+                        IJobDetail newJobDetail = service.BuildQuartzJob(activeJob);
+                        await scheduler.DeleteJob(jobKey, ct);
+                        if (newJobDetail != null)
+                        {
+                            await scheduler.ScheduleJob(newJobDetail, newJobTrigger, ct);
+                        }
+                    }
+                    else
+                    {
+                        // cron-only change: atomic trigger swap, job detail untouched
+                        await scheduler.RescheduleJob(jobCronTrigger.Key, newJobTrigger, ct);
+                    }
+
                     jobsScheduleUpdated++;
 
                     if (activeJob.LastStatus == errorReschedulingStatus)
                     {
                         await Repository.ClearStatusesAsync(activeJob, ct);
-                    }
-                    
-                    if (deletedSuccessfully)
-                    {
-                        Result += $"Successfully unscheduled job:{activeJob.Name} schedule(s)";
                     }
                 }
                 catch (Exception ex)
@@ -151,9 +166,9 @@ public class JobPulse(
     private async Task HandleAndLogError(
         ServiceJob job, string errorStatus, Exception ex, CancellationToken ct)
     {
-        Logger.LogError(ex.Message);
+        Logger.LogError(ex, "Error scheduling job {JobName}", job.Name);
         // create a friendly error message
-        string message = string.Format("Error scheduling the job: {0}.\n\n{2}", job.Name, job.Assembly, ex.Message);
+        string message = $"Error scheduling the job: {job.Name} ({job.Assembly}).\n\n{ex.Message}";
         await Repository.UpdateStatusMessagesAsync(job.Id, message, errorStatus, ct);
     }
 }

@@ -16,21 +16,24 @@ public static class ConfigureServices
         IConfiguration configuration,
         Action<CodeBossJobsOptions> configure)
     {
+        ArgumentNullException.ThrowIfNull(configure);
+
         var options = new CodeBossJobsOptions();
-        configure?.Invoke(options);
-        
+        configure.Invoke(options);
+
         ArgumentNullException.ThrowIfNull(options.Repo, "Repository type cannot be null and must implement IServiceJobRepository interface." +
                                                         " Please provide a valid repository type.");
-        
-        services.Configure<QuartzOptions>(configuration.GetSection(nameof(QuartzOptions)));
 
-        // in test mode, run every minute, otherwise run every 15mins
+        services.Configure<QuartzOptions>(configuration.GetSection(nameof(QuartzOptions)));
+        services.Configure(configure);
+
+        // production: every 15 min; dev/test: every minute
         var cronExpression = options.ProductionMode ? "0 0/15 * * * ?" : "0 * * ? * *" ;
         services.AddQuartz(q =>
         {
             q.UseSimpleTypeLoader();
             q.UseInMemoryStore();
-            q.UseDefaultThreadPool(tp => tp.MaxConcurrency = 10);
+            q.UseDefaultThreadPool(tp => tp.MaxConcurrency = options.ConcurrentSchedulerOperations);
             
             if (options.IsMultiTenantMode)
             {
@@ -51,11 +54,11 @@ public static class ConfigureServices
            
             if (options.RegisteredJobListener)
             {
-                q.AddJobListener(q =>
+                q.AddJobListener(sp =>
                 {
-                    var listener = q.GetRequiredService<ICodeBossJobListener>();
+                    var listener = sp.GetRequiredService<ICodeBossJobListener>();
                     return listener;
-                }, EverythingMatcher<JobKey>.AllJobs()); 
+                }, EverythingMatcher<JobKey>.AllJobs());
             }
         });
 

@@ -8,10 +8,10 @@ using Quartz;
 
 namespace CodeBoss.Jobs.Jobs
 {
-    public abstract class CodeBossJob(IServiceJobRepository repository, ILogger<CodeBossJob> logger) : ICodeBossJob
+    public abstract class CodeBossJob(IServiceJobRepository repository, ILogger logger) : ICodeBossJob
     {
         protected readonly IServiceJobRepository Repository = repository;
-        protected readonly ILogger<CodeBossJob> Logger = logger;
+        protected readonly ILogger Logger = logger;
         
         /// <summary>
         /// Gets the job identifier.
@@ -72,7 +72,7 @@ namespace CodeBoss.Jobs.Jobs
 
         private async Task ExecuteInternal(IJobExecutionContext context)
         {
-            InitializeFromJobContext(context).Wait();
+            await InitializeFromJobContext(context);
 
             try
             {
@@ -83,7 +83,7 @@ namespace CodeBoss.Jobs.Jobs
             }
             catch (Exception e)
             {
-                Logger?.LogError(e.Message);
+                Logger?.LogError(e, "Job {0} failed", ServiceJobName);
                 throw;
             }
         }

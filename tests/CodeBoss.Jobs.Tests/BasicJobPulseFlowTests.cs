@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Collections.Specialized;
+using System.Reflection;
 using CodeBoss.AspNetCore.CbDateTime;
 using CodeBoss.Jobs.Abstractions;
 using CodeBoss.Jobs.Jobs;
@@ -19,31 +20,35 @@ namespace CodeBoss.Jobs.Tests;
 /// <summary>
 /// Tests using real in-memory Quartz.NET scheduler - much cleaner!
 /// </summary>
-public class InMemoryQuartzJobPulseTests : IAsyncDisposable
+public class BasicJobPulseFlowTests : IAsyncLifetime
 {
     private readonly ITestOutputHelper _output;
     private readonly IScheduler _scheduler;
     private readonly Mock<IServiceJobRepository> _mockRepository;
     private readonly IServiceJobService _service;
     private readonly Mock<ISimpleTenantsProvider> _mockTenantsProvider;
-    private readonly Mock<ILogger<CodeBossJob>> _mockLogger;
+    private readonly Mock<ILogger<MultiTenantJobPulse>> _mockLogger;
 
-    public InMemoryQuartzJobPulseTests(ITestOutputHelper output)
+    public BasicJobPulseFlowTests(ITestOutputHelper output)
     {
         _output = output;
         var dateOptions = Options.Create(new DateTimeOptions { TimeZone = "South Africa Standard Time" });
-        
-        // Create real in-memory Quartz scheduler
-        var schedulerFactory = new StdSchedulerFactory();
-        _scheduler = schedulerFactory.GetScheduler().Result;
-        _scheduler.Start().Wait();
 
-        // Only mock what we need to
+        var props = new NameValueCollection { ["quartz.scheduler.instanceName"] = $"BasicJobPulseTests_{Guid.NewGuid():N}" };
+        var schedulerFactory = new StdSchedulerFactory(props);
+        _scheduler = schedulerFactory.GetScheduler().GetAwaiter().GetResult();
+
         _mockRepository = new Mock<IServiceJobRepository>();
         _service = new ServiceJobQuartzService(new CodeBossDateTimeProvider(dateOptions, new NullLogger<CodeBossDateTimeProvider>()));
         _mockTenantsProvider = new Mock<ISimpleTenantsProvider>();
-        _mockLogger = new Mock<ILogger<CodeBossJob>>();
+        _mockLogger = new Mock<ILogger<MultiTenantJobPulse>>();
     }
+
+    public async Task InitializeAsync()
+    {
+        await _scheduler.Start();
+    }
+
 
     [Fact]
     public async Task SingleTenant_WithNewJobs_SchedulesCorrectly()
@@ -189,7 +194,7 @@ public class InMemoryQuartzJobPulseTests : IAsyncDisposable
         
         Assert.Equal(2, tenant1Jobs.Count);
         Assert.Equal(3, tenant2Jobs.Count);
-        Assert.Equal(1, tenant3Jobs.Count);
+        Assert.Single(tenant3Jobs);
         Assert.Contains("6 schedule(s)", jobPulse.Result); // Total: 2+3+1
     }
 
@@ -228,7 +233,7 @@ public class InMemoryQuartzJobPulseTests : IAsyncDisposable
         _output.WriteLine($"Good tenants processed despite tenant 2 error");
         
         Assert.Equal(2, tenant1Jobs.Count); // Good tenant 1 processed
-        Assert.Equal(0, tenant2Jobs.Count); // Bad tenant 2 had no jobs scheduled
+        Assert.Empty(tenant2Jobs); // Bad tenant 2 had no jobs scheduled
         Assert.Equal(2, tenant3Jobs.Count); // Good tenant 3 processed
         Assert.Contains("4 schedule(s)", jobPulse.Result); // 2+2 from good tenants
     }
@@ -360,7 +365,7 @@ public class InMemoryQuartzJobPulseTests : IAsyncDisposable
         }).ToList();
     }
 
-    public async ValueTask DisposeAsync()
+    public async Task DisposeAsync()
     {
         if (_scheduler != null)
         {

@@ -2,12 +2,33 @@
 using CodeBoss.Jobs.Abstractions;
 using CodeBoss.Jobs.Model;
 using Codeboss.Types;
+using Microsoft.Extensions.Options;
 using Quartz;
 
 namespace CodeBoss.Jobs.Services;
 
-public class ServiceJobQuartzService(IDateTimeProvider dateTimeProvider) : IServiceJobService
+public class ServiceJobQuartzService(
+    IDateTimeProvider dateTimeProvider,
+    IOptions<CodeBossJobsOptions> options = null) : IServiceJobService
 {
+    private readonly MisfirePolicy _misfirePolicy = options?.Value?.MisfirePolicy ?? MisfirePolicy.DoNothing;
+
+    private void ApplyMisfire(CronScheduleBuilder x)
+    {
+        switch (_misfirePolicy)
+        {
+            case MisfirePolicy.FireAndProceed:
+                x.WithMisfireHandlingInstructionFireAndProceed();
+                break;
+            case MisfirePolicy.IgnoreMisfires:
+                x.WithMisfireHandlingInstructionIgnoreMisfires();
+                break;
+            default:
+                x.WithMisfireHandlingInstructionDoNothing();
+                break;
+        }
+    }
+
     public IJobDetail BuildQuartzJob(ServiceJob job)
     {
         var jobKey = new JobKey(job.JobKey.ToString(), job.Name);
@@ -17,16 +38,16 @@ public class ServiceJobQuartzService(IDateTimeProvider dateTimeProvider) : IServ
             return null;
         }
 
-        var map = job.JobParameters != null 
-            ? new JobDataMap(job.JobParameters) 
+        var map = job.JobParameters != null
+            ? new JobDataMap(job.JobParameters)
             : new JobDataMap();
-        
+
         var jobDetail = JobBuilder.Create(jobType)
             .WithIdentity(jobKey)
             .WithDescription( job.Id.ToString() )
             .UsingJobData( map )
             .Build();
-        
+
         return jobDetail;
     }
 
@@ -43,28 +64,28 @@ public class ServiceJobQuartzService(IDateTimeProvider dateTimeProvider) : IServ
             // If they view the job in ScheduledJobDetail they'll see that it isn't a valid expression.
             cronExpression = ServiceJob.NeverScheduledCronExpression;
         }
-        
+
         // create quartz trigger
         ITrigger trigger = ( ICronTrigger ) TriggerBuilder.Create()
             .WithIdentity( $"{job.JobKey}-trigger", job.Name )
             .WithCronSchedule( cronExpression, x =>
             {
                 x.InTimeZone( dateTimeProvider?.TimeZoneInfo ?? TimeZoneInfo.Utc );
-                x.WithMisfireHandlingInstructionDoNothing();
+                ApplyMisfire(x);
             } )
             .StartNow()
             .Build();
 
         return trigger;
     }
-    
+
     public ITrigger BuildJobTrigger(ServiceJob job, int? tenantId)
     {
         var jobKey = GetJobKey(job, tenantId);
         var triggerKey = new TriggerKey($"{jobKey.Name}_trigger", jobKey.Group);
-        
-        string cronExpression = IsValidCronDescription(job.CronExpression) 
-            ? job.CronExpression 
+
+        string cronExpression = IsValidCronDescription(job.CronExpression)
+            ? job.CronExpression
             : ServiceJob.NeverScheduledCronExpression;
 
         return TriggerBuilder.Create()
@@ -72,7 +93,7 @@ public class ServiceJobQuartzService(IDateTimeProvider dateTimeProvider) : IServ
             .WithCronSchedule(cronExpression, x =>
             {
                 x.InTimeZone( dateTimeProvider?.TimeZoneInfo ?? TimeZoneInfo.Utc );
-                x.WithMisfireHandlingInstructionDoNothing();
+                ApplyMisfire(x);
             })
             .StartNow()
             .Build();
@@ -85,7 +106,7 @@ public class ServiceJobQuartzService(IDateTimeProvider dateTimeProvider) : IServ
         if (jobType == null) return null;
 
         var map = job.JobParameters != null ? new JobDataMap(job.JobParameters) : new JobDataMap();
-        
+
         // Add tenant ID if this is a tenant job
         if (tenantId.HasValue)
         {
@@ -98,7 +119,7 @@ public class ServiceJobQuartzService(IDateTimeProvider dateTimeProvider) : IServ
             .UsingJobData(map)
             .Build();
     }
-    
+
     public JobKey GetJobKey(ServiceJob job, int? tenantId)
     {
         if (tenantId.HasValue)

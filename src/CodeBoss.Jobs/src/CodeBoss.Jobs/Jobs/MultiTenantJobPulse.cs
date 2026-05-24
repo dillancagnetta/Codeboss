@@ -19,11 +19,11 @@ namespace CodeBoss.Jobs.Jobs;
 
 [DisallowConcurrentExecution]
 public class MultiTenantJobPulse(
-    IServiceJobRepository repository, 
+    IServiceJobRepository repository,
     IServiceJobService service,
     ISimpleTenantsProvider tenantsProvider,
     IOptions<CodeBossJobsOptions> options,
-    ILogger<CodeBossJob> logger) : CodeBossJob(repository, logger)
+    ILogger<MultiTenantJobPulse> logger) : CodeBossJob(repository, logger)
 {
     private readonly CodeBossJobsOptions _options = options.Value;
     private readonly SemaphoreSlim _dbSemaphore = new(options.Value.ConcurrentDbOperations, options.Value.ConcurrentDbOperations); // Limit concurrent DB operations;
@@ -43,123 +43,8 @@ public class MultiTenantJobPulse(
             throw new JobExecutionException(ex);
         }
     }
-    
 
-    /*private async Task<(int deleted, int updated)> SynchronizeJobsForTenantAsync(int tenantId, CancellationToken ct)
-    {
-        int jobsDeleted = 0;
-        int jobsScheduleUpdated = 0;
 
-        var scheduler = Scheduler;
-        
-        // Get active jobs for this tenant
-        var activeJobs = (await Repository.GetActiveJobsAsync(tenantId, ct)).ToList();
-        Logger.LogInformation("Getting active jobs for tenant: [{0}], Jobs: [{1}]", tenantId, activeJobs.Count);
-        
-        // Get scheduled jobs for this tenant
-        var groupName = $"tenant_{tenantId}";
-        var scheduledQuartzJobs = (await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(groupName), ct))
-            .Where(jobKey => jobKey.Group != "System").ToList();
-
-        // Delete jobs no longer active
-        var quartzJobsToDelete = scheduledQuartzJobs.Where(jobKey => 
-            !activeJobs.Any(j => service.GetJobKey(j, tenantId).Equals(jobKey)));
-        
-        foreach (JobKey jobKey in quartzJobsToDelete)
-        {
-            await scheduler.DeleteJob(jobKey, ct);
-            jobsDeleted++;
-        }
-
-        // Add new jobs
-        var newActiveJobs = activeJobs.Where(a => 
-            !scheduledQuartzJobs.Any(q => q.Equals(service.GetJobKey(a, tenantId))));
-        
-        foreach (var job in newActiveJobs)
-        {
-            const string errorSchedulingStatus = "Error scheduling Job";
-            try
-            {
-                IJobDetail jobDetail = service.BuildQuartzJob(job, tenantId);
-                if (jobDetail == null) continue;
-
-                ITrigger jobTrigger = service.BuildJobTrigger(job, tenantId);
-
-                if (job.CronExpression != ServiceJob.NeverScheduledCronExpression)
-                {
-                    await scheduler.ScheduleJob(jobDetail, jobTrigger, ct);
-                    jobsScheduleUpdated++;
-                }
-
-                if (job.LastStatus == errorSchedulingStatus) 
-                    await Repository.ClearStatusesAsync(job, tenantId, ct);
-            }
-            catch (Exception ex)
-            {
-                await HandleAndLogError(job, errorSchedulingStatus, ex, tenantId, ct);
-            }
-        }
-
-        // Handle rescheduling (similar to original logic but with tenant awareness)
-        scheduledQuartzJobs = (await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(groupName), ct))
-            .Where(jobKey => jobKey.Group != "System").ToList();
-            
-        foreach (var jobKey in scheduledQuartzJobs)
-        {
-            var triggersOfJob = await scheduler.GetTriggersOfJob(jobKey, ct);
-            var jobCronTrigger = triggersOfJob.OfType<ICronTrigger>().FirstOrDefault();
-            var activeJob = activeJobs.FirstOrDefault(a => service.GetJobKey(a, tenantId).Equals(jobKey));
-            
-            if (jobCronTrigger == null || activeJob == null) continue;
-
-            bool rescheduleJob = false;
-
-            if (activeJob.CronExpression != jobCronTrigger.CronExpressionString) 
-                rescheduleJob = true;
-            else
-            {
-                IJobDetail scheduledJobDetail = await scheduler.GetJobDetail(jobKey, ct);
-                var activeJobType = activeJob.GetCompiledType();
-
-                if (scheduledJobDetail != null && activeJobType != null)
-                {
-                    if (scheduledJobDetail.JobType != activeJobType) 
-                        rescheduleJob = true;
-                }
-            }
-
-            if (rescheduleJob)
-            {
-                const string errorReschedulingStatus = "Error re-scheduling Job";
-                try
-                {
-                    ITrigger newJobTrigger = service.BuildJobTrigger(activeJob, tenantId);
-                    await scheduler.DeleteJob(jobKey, ct);
-                    await scheduler.RescheduleJob(jobCronTrigger.Key, newJobTrigger, ct);
-                    jobsScheduleUpdated++;
-
-                    if (activeJob.LastStatus == errorReschedulingStatus)
-                    {
-                        await Repository.ClearStatusesAsync(activeJob, tenantId, ct);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    await HandleAndLogError(activeJob, errorReschedulingStatus, ex, tenantId, ct);
-                }
-            }
-        }
-
-        return (jobsDeleted, jobsScheduleUpdated);
-    }
-
-    private async Task HandleAndLogError(ServiceJob job, string errorStatus, Exception ex, int? tenantId, CancellationToken ct)
-    {
-        Logger.LogError(ex.Message);
-        string message = $"Error scheduling the job: {job.Name}.\n\n{ex.Message}";
-        await Repository.UpdateStatusMessagesAsync(job.Id, tenantId, message, errorStatus, ct);
-    }*/
-    
     /// <summary>
     /// Enhanced synchronization using Dataflow for parallel processing of tenant jobs
     /// </summary>
@@ -221,13 +106,15 @@ public class MultiTenantJobPulse(
                     }));
 
                 // Add reschedule operations
-                operations.AddRange(syncBatch.JobsToReschedule.Select(item => 
-                    new JobOperation 
-                    { 
-                        TenantId = syncBatch.TenantId, 
-                        Type = OperationType.Reschedule, 
+                operations.AddRange(syncBatch.JobsToReschedule.Select(item =>
+                    new JobOperation
+                    {
+                        TenantId = syncBatch.TenantId,
+                        Type = OperationType.Reschedule,
                         ServiceJob = item.Job,
-                        JobKey = item.JobKey
+                        JobKey = item.JobKey,
+                        CronTriggerKey = item.CronTriggerKey,
+                        JobTypeChanged = item.JobTypeChanged
                     }));
 
                 return operations;
@@ -412,6 +299,7 @@ public class MultiTenantJobPulse(
             if (jobCronTrigger == null || activeJob == null) continue;
 
             bool rescheduleJob = false;
+            bool jobTypeChanged = false;
 
             // Check if cron expression changed
             if (activeJob.CronExpression != jobCronTrigger.CronExpressionString)
@@ -425,13 +313,22 @@ public class MultiTenantJobPulse(
                 if (scheduledJobDetail != null && activeJobType != null)
                 {
                     if (scheduledJobDetail.JobType != activeJobType)
+                    {
                         rescheduleJob = true;
+                        jobTypeChanged = true;
+                    }
                 }
             }
 
             if (rescheduleJob)
             {
-                syncBatch.JobsToReschedule.Add(new RescheduleItem { Job = activeJob, JobKey = jobKey });
+                syncBatch.JobsToReschedule.Add(new RescheduleItem
+                {
+                    Job = activeJob,
+                    JobKey = jobKey,
+                    CronTriggerKey = jobCronTrigger.Key,
+                    JobTypeChanged = jobTypeChanged
+                });
             }
         }
     }
@@ -475,21 +372,31 @@ public class MultiTenantJobPulse(
                     try
                     {
                         ITrigger newJobTrigger = service.BuildJobTrigger(operation.ServiceJob, operation.TenantId);
-                        await scheduler.DeleteJob(operation.JobKey, ct);
-                    
-                        // Get the original trigger to reschedule
-                        var triggersOfJob = await scheduler.GetTriggersOfJob(operation.JobKey, ct);
-                        var originalTrigger = triggersOfJob.OfType<ICronTrigger>().FirstOrDefault();
-                    
-                        if (originalTrigger != null)
+
+                        if (operation.JobTypeChanged)
                         {
-                            await scheduler.RescheduleJob(originalTrigger.Key, newJobTrigger, ct);
+                            // job class changed: replace job detail + trigger
+                            IJobDetail newJobDetail = service.BuildQuartzJob(operation.ServiceJob, operation.TenantId);
+                            await scheduler.DeleteJob(operation.JobKey, ct);
+                            if (newJobDetail != null)
+                            {
+                                await scheduler.ScheduleJob(newJobDetail, newJobTrigger, ct);
+                            }
+                        }
+                        else if (operation.CronTriggerKey != null)
+                        {
+                            // cron-only change: atomic trigger swap
+                            await scheduler.RescheduleJob(operation.CronTriggerKey, newJobTrigger, ct);
                         }
                         else
                         {
-                            // If no original trigger, just schedule the job
+                            // fallback: no captured trigger key, schedule fresh
                             IJobDetail jobDetail = service.BuildQuartzJob(operation.ServiceJob, operation.TenantId);
-                            await scheduler.ScheduleJob(jobDetail, newJobTrigger, ct);
+                            await scheduler.DeleteJob(operation.JobKey, ct);
+                            if (jobDetail != null)
+                            {
+                                await scheduler.ScheduleJob(jobDetail, newJobTrigger, ct);
+                            }
                         }
                         return OperationResult<JobOperation>.Success(operation);
                     }
@@ -538,17 +445,9 @@ public class MultiTenantJobPulse(
 
     private async Task HandleAndLogError(ServiceJob job, string errorStatus, Exception ex, int? tenantId, CancellationToken ct)
     {
-        Logger.LogError(ex.Message);
+        Logger.LogError(ex, "Error scheduling job {JobName} for tenant {TenantId}", job.Name, tenantId);
         string message = $"Error scheduling the job: {job.Name}.\n\n{ex.Message}";
         await Repository.UpdateStatusMessagesAsync(job.Id, tenantId, message, errorStatus, ct);
-    }
-
-    // Keep the original method for backward compatibility or gradual migration
-    private async Task<(int deleted, int updated)> SynchronizeJobsForTenantAsync(int tenantId, CancellationToken ct)
-    {
-        // Original implementation remains unchanged for reference/fallback
-        // ... (your original code here)
-        return (0, 0); // Placeholder - implement if needed for fallback
     }
 }
 
@@ -572,6 +471,8 @@ public class RescheduleItem
 {
     public ServiceJob Job { get; set; }
     public JobKey JobKey { get; set; }
+    public TriggerKey CronTriggerKey { get; set; }
+    public bool JobTypeChanged { get; set; }
 }
 
 [DebuggerDisplay("TenantId = {TenantId}, ServiceJobId = {ServiceJob.Id}")]
@@ -581,6 +482,8 @@ public class JobOperation
     public OperationType Type { get; set; }
     public ServiceJob ServiceJob { get; set; }
     public JobKey JobKey { get; set; }
+    public TriggerKey CronTriggerKey { get; set; }
+    public bool JobTypeChanged { get; set; }
 }
 
 public enum OperationType

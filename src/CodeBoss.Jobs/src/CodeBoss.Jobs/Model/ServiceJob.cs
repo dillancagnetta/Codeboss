@@ -100,8 +100,7 @@ namespace CodeBoss.Jobs.Model
         /// When this value is <c>JobNotificationStatus.Error</c> a notification email will be sent when the Job completes with an error status.
         /// When this value is <c>JobNotificationStatus.None</c> notifications will not be sent when the Job completes with any status.
         /// </value>
-        [Required]
-        public JobNotificationStatus NotificationStatus { get; set; }
+        public JobNotificationStatus NotificationStatus { get; set; } = JobNotificationStatus.None;
         
         /// <summary>
         /// Gets or sets a value indicating whether jobs should be logged in ServiceJobHistory
@@ -133,6 +132,6 @@ namespace CodeBoss.Jobs.Model
         /// The never scheduled cron expression. This will only fire the job in the year 2099. This is useful for jobs
         /// that should be run only on demand, such as rebuilding Streak data.
         /// </summary>
-        public static string NeverScheduledCronExpression = "0 0 0 1 1 ? 2099";
+        public static readonly string NeverScheduledCronExpression = "0 0 0 1 1 ? 2099";
     }
 }
