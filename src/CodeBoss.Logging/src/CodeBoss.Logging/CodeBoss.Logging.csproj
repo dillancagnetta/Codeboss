@@ -2,7 +2,7 @@
   <PropertyGroup>
     <Description>CodeBoss Serilog logging integration</Description>
     <Authors>CodeBoss.co</Authors>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <LangVersion>Latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
