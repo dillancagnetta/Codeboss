@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace CodeBoss.Extensions
@@ -10,39 +11,11 @@ namespace CodeBoss.Extensions
         ///
         /// Usage:
         ///        foreach(var batch in GetData().Batch(100)) { ... }
-        /// 
+        ///
         /// </summary>
         /// <returns>Yields batched collections</returns>
+        [Obsolete("Use the built-in Enumerable.Chunk instead. This method will be removed in the next major version.")]
         public static IEnumerable<IEnumerable<T>> Batch<T>(this IEnumerable<T> source, int size)
-        {
-            T[] bucket = null;
-            var count = 0;
-
-            foreach(var item in source)
-            {
-                if(bucket == null)
-                {
-                    bucket = new T[size];
-                }
-
-                bucket[count++] = item;
-
-                if(count != size)
-                {
-                    continue;
-                }
-
-                // returns the batch
-                yield return bucket.Select(x => x);
-
-                bucket = null;
-                count = 0;
-            }
-
-            if(bucket != null && count > 0)
-            {
-                yield return bucket.Take(count);
-            }
-        }
+            => source.Chunk(size);
     }
 }
