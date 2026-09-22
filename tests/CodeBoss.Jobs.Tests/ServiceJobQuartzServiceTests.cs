@@ -1,4 +1,5 @@
 using CodeBoss.AspNetCore.CbDateTime;
+using CodeBoss.Jobs.Jobs;
 using CodeBoss.Jobs.Model;
 using CodeBoss.Jobs.Services;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -194,5 +195,86 @@ public class ServiceJobQuartzServiceTests
         var trigger = svc.BuildQuartzTrigger(job);
 
         Assert.NotNull(trigger);
+    }
+
+    // --- JobDataMap is string-only (persistent store with useProperties=true) ---
+
+    [Fact]
+    public void BuildQuartzJob_TenantId_IsStoredAsString()
+    {
+        var svc = MakeService();
+        var job = MakeJob();
+
+        var detail = svc.BuildQuartzJob(job, 7);
+
+        // A persistent store with quartz.jobStore.useProperties=true throws on any non-string value.
+        Assert.IsType<string>(detail!.JobDataMap["TenantId"]);
+        Assert.Equal("7", detail.JobDataMap.GetString("TenantId"));
+        // ...and it still reads back as an int for GetTenantIdFromQuartz.
+        Assert.Equal(7, detail.JobDataMap.GetIntValue("TenantId"));
+    }
+
+    [Fact]
+    public void BuildQuartzJob_AllJobDataMapValues_AreStrings()
+    {
+        var svc = MakeService();
+        var job = MakeJob(parameters: new Dictionary<string, string> { ["Key1"] = "Value1", ["Key2"] = null! });
+
+        var detail = svc.BuildQuartzJob(job, 3);
+
+        Assert.All(detail!.JobDataMap.Values, v => Assert.IsType<string>(v));
+        // A null parameter stays present as empty rather than disappearing from the map.
+        Assert.True(detail.JobDataMap.ContainsKey("Key2"));
+        Assert.Equal(string.Empty, detail.JobDataMap.GetString("Key2"));
+    }
+
+    // --- Per-job misfire override ---
+
+    [Theory]
+    [InlineData("FireAndProceed", MisfireInstruction.CronTrigger.FireOnceNow)]
+    [InlineData("fireandproceed", MisfireInstruction.CronTrigger.FireOnceNow)]
+    [InlineData("IgnoreMisfires", MisfireInstruction.IgnoreMisfirePolicy)]
+    public void BuildJobTrigger_PerJobMisfirePolicy_OverridesGlobalOption(string policy, int expected)
+    {
+        var svc = MakeService(MisfirePolicy.DoNothing);
+        var job = MakeJob(parameters: new Dictionary<string, string> { ["MisfirePolicy"] = policy });
+
+        var trigger = svc.BuildJobTrigger(job, 1);
+
+        Assert.Equal(expected, trigger.MisfireInstruction);
+    }
+
+    [Theory]
+    [InlineData("nonsense")]
+    [InlineData("")]
+    public void BuildJobTrigger_UnparseableMisfirePolicy_FallsBackToGlobal(string policy)
+    {
+        var svc = MakeService(MisfirePolicy.IgnoreMisfires);
+        var job = MakeJob(parameters: new Dictionary<string, string> { ["MisfirePolicy"] = policy });
+
+        var trigger = svc.BuildJobTrigger(job, 1);
+
+        Assert.Equal(MisfireInstruction.IgnoreMisfirePolicy, trigger.MisfireInstruction);
+    }
+
+    // --- Extensibility: hooks are overridable rather than hidden with `new` ---
+
+    [Fact]
+    public void Subclass_CanOverrideTimeZone()
+    {
+        var svc = new UtcPinnedService();
+        var job = MakeJob(cron: "0 0 6 * * ?");
+
+        var trigger = (ICronTrigger)svc.BuildJobTrigger(job, 1);
+
+        Assert.Equal(TimeZoneInfo.Utc, trigger.TimeZone);
+    }
+
+    private sealed class UtcPinnedService() : ServiceJobQuartzService(
+        new CodeBossDateTimeProvider(
+            Options.Create(new DateTimeOptions { TimeZone = "South Africa Standard Time" }),
+            new NullLogger<CodeBossDateTimeProvider>()))
+    {
+        protected override TimeZoneInfo ResolveTimeZone(ServiceJob job) => TimeZoneInfo.Utc;
     }
 }

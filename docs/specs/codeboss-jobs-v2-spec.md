@@ -19,19 +19,75 @@ Work is organised in nine phases. Phases 1 to 3 are non-breaking and can ship as
 
 | Phase | Title | Breaking | Effort |
 |---|---|---|---|
-| 1 | Bug fixes and virtual members | No | S |
-| 2 | Hosting and options | No (additive) | S |
-| 3 | Tenant scope in the library | No (opt-in) | M |
-| 4 | Library-owned execution status and history | Yes (repository interface) | M |
-| 5 | Per-job timeout and retry | Yes (model columns) | M |
-| 6 | Run-now and push sync | No | S |
-| 7 | Stable job definition ids | No (fallback kept) | M |
-| 8 | Repository interface slimming | Yes | M |
-| 9 | Integration tests with Testcontainers | No | M |
+| 1 | Bug fixes and virtual members — **DONE 2026-09-21** | No | S |
+| 2 | Hosting and options — **DONE 2026-09-21** | No (additive) | S |
+| 3 | Tenant scope in the library — **DONE 2026-09-21** | No (opt-in) | M |
+| 4 | Library-owned execution status and history — **DONE 2026-09-21** | ~~Yes~~ No (see §4) | M |
+| 5 | Per-job timeout and retry — **DONE 2026-09-21** | Yes (model columns) | M |
+| 6 | Run-now and push sync — **DONE 2026-09-21** | No | S |
+| 7 | Stable job definition ids — **DONE 2026-09-21** | No (fallback kept) | M |
+| 8 | Repository interface slimming — **DONE 2026-09-21** | Yes | M |
+| 9 | Integration tests with Testcontainers — **DONE 2026-09-21** | No | M |
 
 ---
 
 ## 1. Phase 1 — Bug fixes and virtual members
+
+**Status: implemented 2026-09-21.** Test count went from 59 to 71, all passing. Two existing tests
+asserted the buggy behaviour and were rewritten (`ErrorSchedulingJob_CallsUpdateStatusMessages`
+verified `Times.Never`; `FailedScheduleOp_UnresolvableType_ThrowsJobExecutionException` asserted the
+crash below was expected).
+
+Two deviations from this spec as originally written, both deliberate:
+
+- **§1.3 unified the single-tenant job key with `GetJobKey(job, null)`.** Not done. The legacy
+  single-tenant key uses the job *name* as its group while `GetJobKey(job, null)` uses `"default"`.
+  Unifying them would orphan every row already in a persistent job store, which is breaking. The
+  legacy shape is preserved and commented.
+- **The protected options property is named `JobsOptions`, not `Options`.** Naming it `Options`
+  shadows the `Microsoft.Extensions.Options.Options` static class inside every subclass and breaks
+  `Options.Create(...)` there. The compiler caught this while writing a subclass test.
+
+### 1.0 Failed operations abort the sync cycle for every tenant (found during implementation)
+
+**Not in the original spec. The most severe defect found so far.**
+
+`MultiTenantJobPulse` used `Codeboss.Results.OperationResult<JobOperation>`, whose `Fail(string)`
+factory leaves `Result` at `default` — null. The result-collection block then reads
+`opResult.Result.Type` unconditionally:
+
+```csharp
+// before
+return OperationResult<JobOperation>.Fail("Failed to build job detail");   // Result == null
+...
+switch (opResult.Result.Type)   // NullReferenceException
+```
+
+The `NullReferenceException` faults the `ActionBlock`, which faults `resultCollectionBlock.Completion`,
+which `Execute` catches and rethrows as `JobExecutionException`. **One job row with a renamed class
+stopped scheduling for every tenant in that cycle**, and every cycle after it, silently — the only
+symptom is a pulse failure in the log.
+
+**Fix.** A purpose-built outcome type that always carries its operation, replacing
+`OperationResult<JobOperation>` in the pipeline:
+
+```csharp
+public sealed class JobOperationOutcome
+{
+    public JobOperation Operation { get; }   // never null
+    public bool IsSuccess { get; }
+    public string ErrorMessage { get; }      // null when successful
+
+    public static JobOperationOutcome Success(JobOperation operation);
+    public static JobOperationOutcome Failure(JobOperation operation, string errorMessage);
+}
+```
+
+`ExecuteOperationAsync` also lost its two redundant inner `try/catch` blocks, which duplicated the
+outer one.
+
+Covered by `FailedScheduleOp_ForOneTenant_DoesNotStopOtherTenants`, which asserts tenant 2's job is
+still scheduled when tenant 1's job has an unresolvable type.
 
 ### 1.1 Status column overflow in `MultiTenantJobPulse`
 
@@ -209,6 +265,33 @@ protected virtual JobDataMap BuildJobDataMap(ServiceJob job, int? tenantId)
 
 ## 2. Phase 2 — Hosting and options
 
+**Status: implemented 2026-09-21.** Jobs tests 71 → 90, all passing. No existing test needed changing.
+
+Verified rather than assumed: Quartz 3.18's `SchedulingOptions.OverWriteExistingData` defaults to
+`true` (decompiled from `Quartz.Extensions.DependencyInjection`), and `ContainerConfigurationProcessor`
+passes it through to the `XMLSchedulingDataProcessor`. A changed `PulseInterval` therefore replaces the
+stored trigger on the next start, so the new setting takes effect against ChurchManagerApi's clustered
+store rather than being silently ignored.
+
+Three deviations from this section as originally written, all deliberate:
+
+- **`ConfigureQuartz` is purely additive, not an either/or.** The spec had the library call
+  `UseInMemoryStore()` only when no callback was supplied. Instead the in-memory store is always
+  applied as a default and the callback runs last; since both it and `UsePersistentStore` write
+  `quartz.jobStore.type`, the last write wins. This keeps the callback usable for adding a listener
+  without also forcing the consumer to take ownership of the job store, and it is the same mechanism
+  ChurchManagerApi already relies on today.
+- **The pulse trigger drops missed fires.** Added `WithMisfireHandlingInstructionNextWithRemainingCount()`,
+  which the spec did not mention. Without it, a host down for an hour fires a burst of catch-up pulses
+  on restart, each a full reconciliation.
+- **Added an `AddCodeBossJobs(services, configure)` overload with no `IConfiguration`,** and made the
+  `configuration` argument on the main overload nullable. Hosts that configure Quartz entirely in code
+  have no `QuartzOptions` section to bind, and the tests need this.
+
+Note on cadence semantics: the pulse moved from a wall-clock-aligned cron (`0 0/15 * * * ?`, firing at
+:00/:15/:30/:45) to a fixed interval measured from scheduler start. For a reconciliation sweep this is
+equivalent or better, since it staggers replicas rather than synchronising them.
+
 ### 2.1 Replace `ProductionMode` with an explicit cadence and expose Quartz configuration
 
 **Problem.** `AddCodeBossJobs` hard-codes `q.UseInMemoryStore()` and picks the pulse cron from a boolean. ChurchManagerApi swaps the store by relying on `Configure<QuartzOptions>` registration order.
@@ -316,6 +399,33 @@ services.AddCodeBossJobs(configuration, o =>
 
 ## 3. Phase 3 — Tenant scope in the library
 
+**Status: implemented 2026-09-21.** Jobs tests 90 → 96, all passing. No existing test needed changing.
+
+Verified rather than assumed, by decompiling Quartz 3.18:
+
+- `MicrosoftDependencyInjectionJobFactory.InstantiateJob` calls `ConfigureScope(scope, ...)` and only
+  then `CreateJob(bundle, scope.ServiceProvider)`. The ordering the whole design depends on is real.
+- `ServiceCollectionExtensions.AddQuartz` registers the default factory with `TryAddSingleton`, so
+  registering ours *before* that call wins without needing `services.Replace`, and a consumer's own
+  factory registered earlier still wins over ours.
+- `ServiceCollectionSchedulerFactory.InstantiateType<T>` resolves `T` from the container before
+  falling back to the configured `quartz.scheduler.jobFactory.type`. The DI registration is therefore
+  what actually takes effect, even though `AddQuartz` also writes that property.
+
+Two deviations from this section as originally written:
+
+- **`TryAddSingleton` before `AddQuartz`, not `services.Replace` after.** Same effect for the normal
+  case, but it does not silently stomp a factory the consumer registered deliberately.
+- **A missing initializer warns once, not on every fire.** Tenant jobs fire continuously; an
+  unconditional warning would bury the log. Guarded with an `Interlocked.Exchange` flag.
+
+The three behaviours worth knowing are pinned by tests that drive a real scheduler rather than
+asserting registrations: the tenant is visible to a dependency's *constructor*
+(`TenantContext_IsVisibleToTheJobsConstructorDependencies`), a missing initializer degrades instead of
+crashing (`NoInitializerRegistered_JobStillRunsWithoutTenantContext`, also the negative control that
+proves the first test measures the factory), and a throwing initializer stops the job
+(`InitializerThrows_TheJobNeverRuns`).
+
 **Problem.** `TenantAwareJobFactory` in ChurchManagerApi sets the ambient tenant before the job's DI scope resolves. This is generic behaviour that every multi-tenant consumer of the library needs.
 
 **Fix.** Add a small interface and a job factory to the library; the consumer implements one method.
@@ -404,6 +514,60 @@ Note the behaviour change: an unknown tenant now **fails the fire** instead of r
 ---
 
 ## 4. Phase 4 — Library-owned execution status and history
+
+**Status: implemented 2026-09-21.** Jobs tests 96 → 128, all passing.
+
+**This phase turned out NOT to be breaking**, contrary to the plan above. The two new repository
+methods ship as **default interface implementations** that map onto the existing
+`UpdateStatusMessagesAsync`. An existing repository compiles untouched and still gets last-status
+tracking; overriding both is what buys run timings and history rows. That keeps Phases 1–4 a single
+non-breaking release.
+
+Deviations from this section as originally written:
+
+- **Non-breaking via default interface implementations**, as above.
+- **The listener takes `IServiceScopeFactory`, not the repository and observers directly.** Quartz
+  builds listeners once from the root provider, so injecting a transient or scoped repository would
+  make it a captive singleton holding a database connection for the process lifetime. It now resolves
+  both from a fresh scope per callback.
+- **`UseDefaultStatusListener` is `bool?` with an auto default**, not a plain bool. Null means on
+  unless `RegisteredJobListener` is set. Defaulting to plain `true` would have made every existing
+  consumer double-write status the moment they upgraded, since their own listener already does it.
+- **Every callback swallows its own exceptions.** See the bug below.
+
+### 4.0 A throwing job listener silently stops jobs from running (found during implementation)
+
+`GetAttempt` read the retry counter with `JobDataMap.GetString(key)`, which **throws
+`KeyNotFoundException` for an absent key** rather than returning null. Every scheduled fire lacks that
+key, so every call threw.
+
+The consequence is worse than the bug. Quartz's response to a listener that throws from
+`JobToBeExecuted` is to skip the job:
+
+```
+[Error] Quartz.Core.ErrorLogger: Unable to notify JobListener(s) of Job to be executed:
+(Job will NOT be executed!). trigger=... job=...
+ ---> System.Collections.Generic.KeyNotFoundException: Key Attempt not found
+```
+
+So a defect in *status bookkeeping* silently stopped *all real work*, with the only evidence in the
+Quartz error log. It surfaced as two Phase 3 tenant tests timing out with "the job never ran".
+
+Two fixes, both needed:
+
+1. `GetAttempt` guards with `ContainsKey` before reading.
+2. **Every `CodeBossJobStatusListener` callback now wraps its whole body in try/catch.** Bookkeeping
+   is not permitted to cost a run, whatever goes wrong inside it — a failing database, a null
+   reference, a bad observer.
+
+Pinned by `RepositoryThrowingOnStart_DoesNotPreventTheJobFromRunning` and
+`GetAttempt_AbsentKey_ReturnsOne`.
+
+A related C# subtlety worth recording, hit while writing the test double: because the run-tracking
+methods are **default interface implementations**, a class deriving from a base that already declares
+the interface cannot `override` them. The derived type must **re-list the interface**
+(`class Recording : StubRepository, IServiceJobRepository`) to rebuild the dispatch slot. This is the
+same mechanism ChurchManagerApi's `UtcServiceJobQuartzService` relies on with `new`.
 
 **Problem.** The library defines `ServiceJobHistory` and `EnableHistory` but never writes them. All status tracking lives in the consumer's `CmJobListener`, using free-text statuses (`"Running"`, `"Success"`, `"Exception"`, `"Error scheduling Job"`). Every consumer has to re-implement the same 150 lines.
 
@@ -570,6 +734,38 @@ Registration: `RegisteredJobListener` becomes `UseDefaultStatusListener` (defaul
 
 ## 5. Phase 5 — Per-job timeout and retry
 
+**Status: implemented 2026-09-21.** Jobs tests 128 → 147, all passing. Breaking only in the sense that
+`ServiceJob` gains columns, so consumers need an EF migration. No API breaks.
+
+Deviations from this section as originally written:
+
+- **Uncooperative jobs are reported honestly, not as timeouts.** The spec implied a job that ignores
+  its token could still be recorded as `TimedOut`. It cannot be aborted, so it genuinely completes its
+  work; recording a timeout would be a lie. It is recorded as `Succeeded` with a warning naming the
+  overrun and telling the author to pass the token down. Pinned by
+  `UncooperativeJob_RunsToCompletion_AndIsReportedHonestly`.
+- **A bare `OperationCanceledException` is NOT mapped to `TimedOut`.** The spec's listener did that.
+  The scheduler cancels running jobs during shutdown, so it would have recorded every job interrupted
+  by a deploy as too slow. Only the library's own `JobTimeoutException` means the deadline was missed.
+- **No explicit `JobExecutionException` wrapping in `CodeBossJob`.** The spec added one; Quartz's
+  `JobRunShell` already wraps whatever the job throws, so the extra wrap would only have added a layer
+  for `Unwrap` to strip.
+- **`RetryPolicy.Delay` clamps the exponent** at 2^32 before applying the cap, so a large attempt
+  count cannot overflow to infinity. Pinned by `Delay_LargeAttemptCount_DoesNotOverflowToInfinity`.
+- **The retry trigger name carries a GUID suffix.** Two failures of the same attempt number (a retry
+  that itself misfires and is re-run) would otherwise collide on trigger key.
+
+Both defects noted in the JobMaster comparison are avoided and pinned by tests: the backoff is capped
+(`Delay_IsCapped`), jittered (`Delay_IsJittered`), and the first retry waits a full base delay rather
+than half of one (`Delay_FirstRetryWaitsAFullBaseDelay_NotHalfOfOne` — JobMaster's exponent starts
+at −1).
+
+A trap worth recording, hit while writing the tests: `CodeBossJob` loads its definition through the
+**tenant** overload `GetByIdAsync(id, tenantId, ct)` even in single-tenant mode, passing a null tenant
+id. A repository that only implements the non-tenant overload returns null, and then every per-job
+setting — timeout, retry budget — silently reverts to its default with no error. Phase 8's interface
+consolidation removes this class of bug.
+
 ### 5.1 Model columns
 
 ```csharp
@@ -694,6 +890,28 @@ public static int GetAttempt(this IJobExecutionContext ctx) =>
 
 ## 6. Phase 6 — Run-now and push sync
 
+**Status: implemented 2026-09-21.** Jobs tests 147 → 157, all passing.
+
+Deviations and additions:
+
+- **`CodeBossJob.Parameters` was added, and it is what makes the feature real.** The spec passed a
+  `JobDataMap` to `TriggerJob` but gave the job body no way to read it: `Execute(ct)` receives no
+  context, and `ServiceJob.JobParameters` holds only the stored values, not the one-off overrides.
+  Without this, `RunNowAsync`'s parameter argument was inert and the test asserting it was vacuous.
+  Jobs now read the MERGED map, where trigger data wins over job data, so an override is visible for
+  that run only and the stored definition is untouched.
+- **`RunNowAsync` uses `storeNonDurableWhileAwaitingScheduling: true`** rather than adding the job
+  permanently, so an on-demand run of a never-scheduled job leaves no lasting scheduler state.
+- **`IDateTimeProvider` became optional on `ServiceJobQuartzService`.** Every use was already
+  null-guarded and falls back to UTC, so requiring the registration bought nothing but a startup
+  failure in hosts that do not have one.
+- **`RequestSyncAsync` warns and returns instead of throwing** when the pulse job is absent, which is
+  the normal state on a host that has not started its scheduler and has an in-memory store.
+
+The tests deliberately configure `PulseOnStartup = false` with a twelve-hour interval and a
+year-2098/2099 cron, so nothing can run from a schedule. Every execution observed is necessarily the
+result of an explicit command.
+
 **Problem.** On-demand jobs use the year-2099 cron hack. Saving a job in the admin UI waits up to 15 minutes for the pulse.
 
 ```csharp
@@ -763,6 +981,31 @@ For `Interrupt` to work, `CodeBossJob` implements `IInterruptableJob` semantics 
 ---
 
 ## 7. Phase 7 — Stable job definition ids
+
+**Status: implemented 2026-09-21.** Jobs tests 157 → 176, all passing.
+
+Deviations from this section as originally written:
+
+- **The pulses' job-type-changed check had to move onto the registry too.** The spec only replaced
+  `ResolveJobType` inside the service. Both pulses independently called `activeJob.GetCompiledType()`
+  to decide whether a job's class had changed; for an id-based row that returns null, the comparison
+  is skipped, and the job would look permanently unchanged — it would never be rescheduled after a
+  genuine class change. `IServiceJobService` therefore gained `ResolveJobType`, as a DEFAULT interface
+  implementation carrying the legacy reflection behaviour so a consumer's own `IServiceJobService`
+  keeps compiling and behaving as before.
+- **`GetCompiledType` is NOT marked obsolete.** It is still the registry's own fallback path and the
+  interface default, so obsoleting it would only produce warnings inside the library.
+- **Assembly scanning guards `ReflectionTypeLoadException`.** `Assembly.GetTypes()` throws outright if
+  any single type fails to load, which would take down registration for every job in the assembly over
+  one unrelated bad reference. The exception's partial results are used instead. This is the same
+  weakness noted as item 4 in the JobMaster review.
+- **Registered types are aliased by full name as well as by id**, so a row written before the
+  attribute existed resolves through the registry rather than falling through to reflection.
+
+The scenario the phase exists for is pinned by `ARenamedJobClass_StillResolvesThroughItsStableId`,
+which resolves a row whose `Assembly` is null — something reflection could never do — and by
+`WithNoRegistry_LegacyRowsStillResolve`, which proves consumers who never call `AddCodeBossJob` are
+unaffected.
 
 **Problem.** `ServiceJob.Class` and `Assembly` are resolved with `Type.GetType($"{Class}, {Assembly}")`. A namespace move or project rename silently breaks every affected row.
 

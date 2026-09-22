@@ -12,12 +12,12 @@ public static partial class Extensions
     /// <summary>
     /// Indicates whether this string is null or an System.String.Empty string.
     /// </summary>
-    public static bool IsNullOrEmpty(this string str) => string.IsNullOrEmpty(str);
+    public static bool IsNullOrEmpty(this string? str) => string.IsNullOrEmpty(str);
 
     /// <summary>
     /// indicates whether this string is null, empty, or consists only of white-space characters.
     /// </summary>
-    public static bool IsNullOrWhiteSpace(this string str) => string.IsNullOrWhiteSpace(str);
+    public static bool IsNullOrWhiteSpace(this string? str) => string.IsNullOrWhiteSpace(str);
 
     public static Uri ToUri(this string s)
     {
@@ -122,7 +122,7 @@ public static partial class Extensions
     /// <param name="str">The STR.</param>
     /// <returns></returns>
     [System.Diagnostics.DebuggerStepThrough]
-    public static int AsInteger( this string str )
+    public static int AsInteger( this string? str )
     {
         return str.AsIntegerOrNull() ?? 0;
     }
@@ -133,7 +133,7 @@ public static partial class Extensions
     /// <param name="str">The string.</param>
     /// <returns></returns>
     [System.Diagnostics.DebuggerStepThrough]
-    public static int? AsIntegerOrNull( this string str )
+    public static int? AsIntegerOrNull( this string? str )
     {
         if ( int.TryParse( str, out var value ) )
         {
@@ -149,7 +149,7 @@ public static partial class Extensions
     /// <param name="str">The STR.</param>
     /// <returns></returns>
     [System.Diagnostics.DebuggerStepThrough]
-    public static Guid AsGuid( this string str )
+    public static Guid AsGuid( this string? str )
     {
         return str.AsGuidOrNull() ?? Guid.Empty;
     }
@@ -160,7 +160,7 @@ public static partial class Extensions
     /// <param name="str">The string.</param>
     /// <returns></returns>
     [System.Diagnostics.DebuggerStepThrough]
-    public static Guid? AsGuidOrNull( this string str )
+    public static Guid? AsGuidOrNull( this string? str )
     {
         Guid value;
         if ( Guid.TryParse( str, out value ) )

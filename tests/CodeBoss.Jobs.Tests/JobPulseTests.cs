@@ -57,7 +57,7 @@ public class JobPulseTests : IAsyncDisposable
     public async Task NewJobs_AreScheduled()
     {
         var jobs = new[] { MakeJob(1), MakeJob(2) };
-        _mockRepository.Setup(r => r.GetActiveJobsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(jobs);
+        _mockRepository.Setup(r => r.GetActiveJobsAsync(It.IsAny<int?>(), It.IsAny<CancellationToken>())).ReturnsAsync(jobs);
 
         await CreatePulse().Execute(CancellationToken.None);
 
@@ -74,7 +74,7 @@ public class JobPulseTests : IAsyncDisposable
         await _scheduler.ScheduleJob(detail, trigger);
 
         var activeJobs = new[] { MakeJob(1) };
-        _mockRepository.Setup(r => r.GetActiveJobsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(activeJobs);
+        _mockRepository.Setup(r => r.GetActiveJobsAsync(It.IsAny<int?>(), It.IsAny<CancellationToken>())).ReturnsAsync(activeJobs);
 
         var pulse = CreatePulse();
         await pulse.Execute(CancellationToken.None);
@@ -95,7 +95,7 @@ public class JobPulseTests : IAsyncDisposable
         await _scheduler.ScheduleJob(detail, trigger);
 
         job.CronExpression = "0 */10 * * * ?";
-        _mockRepository.Setup(r => r.GetActiveJobsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new[] { job });
+        _mockRepository.Setup(r => r.GetActiveJobsAsync(It.IsAny<int?>(), It.IsAny<CancellationToken>())).ReturnsAsync(new[] { job });
 
         await CreatePulse().Execute(CancellationToken.None);
 
@@ -116,7 +116,7 @@ public class JobPulseTests : IAsyncDisposable
         await _scheduler.ScheduleJob(detail, trigger);
 
         job.Class = "CodeBoss.Jobs.Tests.TestJob2";
-        _mockRepository.Setup(r => r.GetActiveJobsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new[] { job });
+        _mockRepository.Setup(r => r.GetActiveJobsAsync(It.IsAny<int?>(), It.IsAny<CancellationToken>())).ReturnsAsync(new[] { job });
 
         await CreatePulse().Execute(CancellationToken.None);
 
@@ -132,7 +132,7 @@ public class JobPulseTests : IAsyncDisposable
     public async Task NeverScheduledCronExpression_SkipsScheduling()
     {
         var job = MakeJob(1, ServiceJob.NeverScheduledCronExpression);
-        _mockRepository.Setup(r => r.GetActiveJobsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new[] { job });
+        _mockRepository.Setup(r => r.GetActiveJobsAsync(It.IsAny<int?>(), It.IsAny<CancellationToken>())).ReturnsAsync(new[] { job });
 
         var pulse = CreatePulse();
         await pulse.Execute(CancellationToken.None);
@@ -143,30 +143,66 @@ public class JobPulseTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task ErrorSchedulingJob_CallsUpdateStatusMessages()
+    public async Task UnresolvableJobType_RecordsSchedulingError()
     {
         var job = MakeJob(1, cls: "DoesNotExist.BadClass", assembly: "FakeAssembly");
-        _mockRepository.Setup(r => r.GetActiveJobsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new[] { job });
+        _mockRepository.Setup(r => r.GetActiveJobsAsync(It.IsAny<int?>(), It.IsAny<CancellationToken>())).ReturnsAsync(new[] { job });
 
         await CreatePulse().Execute(CancellationToken.None);
 
-        _mockRepository.Verify(r => r.UpdateStatusMessagesAsync(
-            job.Id,
-            It.Is<string>(msg => msg.Contains(job.Name) && msg.Contains(job.Assembly)),
-            It.IsAny<string>(),
-            It.IsAny<CancellationToken>()), Times.Never);
+        // The status column is MaxLength(50): the short constant goes there, the detail goes to the message.
+        _mockRepository.Verify(r => r.SetStatusAsync(
+            new JobRef(job.Id, null),
+            JobRunStatus.SchedulingError,
+            It.Is<string>(msg => msg.Contains(job.Name) && msg.Contains(job.Class)),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UnresolvableJobType_DoesNotStopOtherJobsFromScheduling()
+    {
+        var bad = MakeJob(1, cls: "DoesNotExist.BadClass", assembly: "FakeAssembly");
+        var good = MakeJob(2);
+        _mockRepository.Setup(r => r.GetActiveJobsAsync(It.IsAny<int?>(), It.IsAny<CancellationToken>())).ReturnsAsync(new[] { bad, good });
+
+        await CreatePulse().Execute(CancellationToken.None);
+
+        var keys = (await _scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup()))
+            .Where(k => k.Group != JobGroups.System).ToList();
+
+        Assert.Single(keys);
+        Assert.Equal(good.JobKey.ToString(), keys[0].Name);
+    }
+
+    [Fact]
+    public async Task SchedulingErrorStatus_FitsTheStatusColumn()
+    {
+        var job = MakeJob(1, cls: "DoesNotExist.BadClass", assembly: "FakeAssembly");
+        _mockRepository.Setup(r => r.GetActiveJobsAsync(It.IsAny<int?>(), It.IsAny<CancellationToken>())).ReturnsAsync(new[] { job });
+
+        JobRunStatus? capturedStatus = null;
+        _mockRepository
+            .Setup(r => r.SetStatusAsync(It.IsAny<JobRef>(), It.IsAny<JobRunStatus>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback<JobRef, JobRunStatus, string, CancellationToken>((_, status, _, _) => capturedStatus = status)
+            .Returns(Task.CompletedTask);
+
+        await CreatePulse().Execute(CancellationToken.None);
+
+        Assert.NotNull(capturedStatus);
+        var text = capturedStatus.ToString();
+        Assert.True(text.Length <= 50, $"LastStatus is MaxLength(50) but got {text.Length} chars: '{text}'");
     }
 
     [Fact]
     public async Task PreviousErrorStatus_ClearedOnSuccessfulSchedule()
     {
         var job = MakeJob(1);
-        job.LastStatus = "Error scheduling Job";
-        _mockRepository.Setup(r => r.GetActiveJobsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new[] { job });
+        job.LastStatus = nameof(JobRunStatus.SchedulingError);
+        _mockRepository.Setup(r => r.GetActiveJobsAsync(It.IsAny<int?>(), It.IsAny<CancellationToken>())).ReturnsAsync(new[] { job });
 
         await CreatePulse().Execute(CancellationToken.None);
 
-        _mockRepository.Verify(r => r.ClearStatusesAsync(job, It.IsAny<CancellationToken>()), Times.Once);
+        _mockRepository.Verify(r => r.ClearStatusAsync(new JobRef(job.Id, null), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -176,7 +212,7 @@ public class JobPulseTests : IAsyncDisposable
         await _scheduler.ScheduleJob(_service.BuildQuartzJob(staleJob), _service.BuildQuartzTrigger(staleJob));
 
         var activeJobs = new[] { MakeJob(1), MakeJob(2) };
-        _mockRepository.Setup(r => r.GetActiveJobsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(activeJobs);
+        _mockRepository.Setup(r => r.GetActiveJobsAsync(It.IsAny<int?>(), It.IsAny<CancellationToken>())).ReturnsAsync(activeJobs);
 
         var pulse = CreatePulse();
         await pulse.Execute(CancellationToken.None);

@@ -7,7 +7,7 @@ namespace CodeBoss.Extensions
 {
     public static class EnumerableExtensions
     {
-        public static void ForEach<TSource>(this IEnumerable<TSource> source, Action<TSource> action)
+        public static void ForEach<TSource>(this IEnumerable<TSource>? source, Action<TSource> action)
         {
             if (source == null || !source.Any()) return;
 
@@ -17,7 +17,7 @@ namespace CodeBoss.Extensions
             }
         }
 
-        public static bool IsNullOrEmpty<TSource>(this IEnumerable<TSource> source) => source == null || !source.Any();
+        public static bool IsNullOrEmpty<TSource>(this IEnumerable<TSource>? source) => source == null || !source.Any();
 
         /// <summary>
         /// Adds only distinct items to the source. Able to pass in an optional <see cref="IEqualityComparer{T}"/> to configure
