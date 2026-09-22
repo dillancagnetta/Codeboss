@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <LangVersion>Latest</LangVersion>
+        <Nullable>disable</Nullable>
+        <IsPackable>false</IsPackable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="coverlet.collector"/>
+        <PackageReference Include="Microsoft.NET.Test.Sdk"/>
+        <PackageReference Include="xunit"/>
+        <PackageReference Include="xunit.runner.visualstudio"/>
+        <PackageReference Include="Testcontainers.PostgreSql"/>
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL"/>
+        <PackageReference Include="Quartz.Serialization.SystemTextJson"/>
+        <PackageReference Include="Microsoft.Extensions.Logging"/>
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\CodeBoss.Jobs.EntityFrameworkCore\src\CodeBoss.Jobs.EntityFrameworkCore\CodeBoss.Jobs.EntityFrameworkCore.csproj"/>
+        <ProjectReference Include="..\..\src\CodeBoss.AspNetCore\src\CodeBoss.AspNetCore\CodeBoss.AspNetCore.csproj"/>
+    </ItemGroup>
+    <ItemGroup>
+        <EmbeddedResource Include="Sql\*.sql"/>
+    </ItemGroup>
+    <ItemGroup>
+        <Using Include="Xunit"/>
+    </ItemGroup>
+</Project>

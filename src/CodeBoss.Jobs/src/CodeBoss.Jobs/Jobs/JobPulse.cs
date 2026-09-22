@@ -35,9 +35,9 @@ public class JobPulse(
         int jobsScheduleUpdated = 0;
 
         var scheduler = Scheduler;
-        var activeJobs = await Repository.GetActiveJobsAsync(ct);
+        var activeJobs = await Repository.GetActiveJobsAsync(tenantId: null, ct);
         var scheduledQuartzJobs = (await scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup(), ct))
-            .Where(jobKey => jobKey.Group != "System").ToList();
+            .Where(jobKey => jobKey.Group != JobGroups.System).ToList();
 
         // delete any jobs that are no longer exist (are not set to active) in the database
         var quartsJobsToDelete = scheduledQuartzJobs.Where(jobKey => !activeJobs.Any(j => j.JobKey.ToString() == jobKey.Name));
@@ -51,12 +51,20 @@ public class JobPulse(
         var newActiveJobs = activeJobs.Where(a => !scheduledQuartzJobs.Any(q => q.Name.AsGuid().Equals(a.JobKey)));
         foreach (var job in newActiveJobs)
         {
-            const string errorSchedulingStatus = "Error scheduling Job";
+            const string errorSchedulingStatus = JobStatusText.ErrorScheduling;
             try
             {
                 IJobDetail jobDetail = service.BuildQuartzJob(job);
-                
-                if (jobDetail == null) continue;
+
+                if (jobDetail == null)
+                {
+                    // The job's type could not be loaded (renamed class, moved namespace, missing
+                    // assembly). Record it against the row: skipping silently means the job simply
+                    // never runs and nothing anywhere says why.
+                    await HandleAndLogError(job, errorSchedulingStatus,
+                        $"Job type '{job.Class}, {job.Assembly}' could not be loaded.", ct);
+                    continue;
+                }
 
                 ITrigger jobTrigger = service.BuildQuartzTrigger(job);
 
@@ -68,7 +76,7 @@ public class JobPulse(
                 }
 
                 // if the last status was an error, but we now loaded successful, clear the error
-                if (job.LastStatus == errorSchedulingStatus) await Repository.ClearStatusesAsync(job, ct);
+                if (job.LastRunStatus == JobRunStatus.SchedulingError) await Repository.ClearStatusAsync(new JobRef(job.Id, null), ct);
             }
             catch (Exception ex)
             {
@@ -78,7 +86,7 @@ public class JobPulse(
 
         // reload the jobs in case any where added/removed (skip JobPulse job)
         scheduledQuartzJobs = (await scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup(), ct))
-            .Where(jobKey => jobKey.Group != "System").ToList();
+            .Where(jobKey => jobKey.Group != JobGroups.System).ToList();
         foreach (var jobKey in scheduledQuartzJobs)
         {
             var triggersOfJob = await scheduler.GetTriggersOfJob(jobKey, ct);
@@ -98,7 +106,7 @@ public class JobPulse(
             {
                 // update the job detail if it has changed
                 IJobDetail scheduledJobDetail = await scheduler.GetJobDetail(jobKey, ct);
-                var activeJobType = activeJob.GetCompiledType();
+                var activeJobType = service.ResolveJobType(activeJob);
 
                 if (scheduledJobDetail != null && activeJobType != null)
                 {
@@ -112,7 +120,7 @@ public class JobPulse(
 
             if (rescheduleJob)
             {
-                const string errorReschedulingStatus = "Error re-scheduling Job";
+                const string errorReschedulingStatus = JobStatusText.ErrorRescheduling;
                 try
                 {
                     ITrigger newJobTrigger = service.BuildQuartzTrigger(activeJob);
@@ -122,10 +130,14 @@ public class JobPulse(
                         // job class changed: replace job detail + trigger
                         IJobDetail newJobDetail = service.BuildQuartzJob(activeJob);
                         await scheduler.DeleteJob(jobKey, ct);
-                        if (newJobDetail != null)
+                        if (newJobDetail == null)
                         {
-                            await scheduler.ScheduleJob(newJobDetail, newJobTrigger, ct);
+                            await HandleAndLogError(activeJob, errorReschedulingStatus,
+                                $"Job type '{activeJob.Class}, {activeJob.Assembly}' could not be loaded.", ct);
+                            continue;
                         }
+
+                        await scheduler.ScheduleJob(newJobDetail, newJobTrigger, ct);
                     }
                     else
                     {
@@ -135,9 +147,9 @@ public class JobPulse(
 
                     jobsScheduleUpdated++;
 
-                    if (activeJob.LastStatus == errorReschedulingStatus)
+                    if (activeJob.LastRunStatus == JobRunStatus.SchedulingError)
                     {
-                        await Repository.ClearStatusesAsync(activeJob, ct);
+                        await Repository.ClearStatusAsync(new JobRef(activeJob.Id, null), ct);
                     }
                 }
                 catch (Exception ex)
@@ -163,12 +175,27 @@ public class JobPulse(
         Logger.LogInformation(Result);
     }
 
-    private async Task HandleAndLogError(
+    private Task HandleAndLogError(
         ServiceJob job, string errorStatus, Exception ex, CancellationToken ct)
     {
         Logger.LogError(ex, "Error scheduling job {JobName}", job.Name);
-        // create a friendly error message
-        string message = $"Error scheduling the job: {job.Name} ({job.Assembly}).\n\n{ex.Message}";
-        await Repository.UpdateStatusMessagesAsync(job.Id, message, errorStatus, ct);
+        return WriteErrorStatus(job, errorStatus, ex.Message, ct);
+    }
+
+    private Task HandleAndLogError(
+        ServiceJob job, string errorStatus, string errorMessage, CancellationToken ct)
+    {
+        Logger.LogError("Error scheduling job {JobName}: {Error}", job.Name, errorMessage);
+        return WriteErrorStatus(job, errorStatus, errorMessage, ct);
+    }
+
+    /// <summary>
+    /// Writes the friendly message to <c>LastStatusMessage</c> and the short, fixed
+    /// <paramref name="errorStatus"/> to <c>LastStatus</c>, which is a 50-character column.
+    /// </summary>
+    private Task WriteErrorStatus(ServiceJob job, string errorStatus, string errorMessage, CancellationToken ct)
+    {
+        string message = $"Error scheduling the job: {job.Name} ({job.Assembly}).\n\n{errorMessage}";
+        return Repository.SetStatusAsync(new JobRef(job.Id, null), JobRunStatus.SchedulingError, message, ct);
     }
 }

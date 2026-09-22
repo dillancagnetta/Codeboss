@@ -7,7 +7,7 @@ namespace CodeBoss.Extensions
 {
     public static class EnumerableExtensions
     {
-        public static void ForEach<TSource>(this IEnumerable<TSource> source, Action<TSource> action)
+        public static void ForEach<TSource>(this IEnumerable<TSource>? source, Action<TSource> action)
         {
             if (source == null || !source.Any()) return;
 
@@ -17,7 +17,7 @@ namespace CodeBoss.Extensions
             }
         }
 
-        public static bool IsNullOrEmpty<TSource>(this IEnumerable<TSource> source) => source == null || !source.Any();
+        public static bool IsNullOrEmpty<TSource>(this IEnumerable<TSource>? source) => source == null || !source.Any();
 
         /// <summary>
         /// Adds only distinct items to the source. Able to pass in an optional <see cref="IEqualityComparer{T}"/> to configure
@@ -33,16 +33,21 @@ namespace CodeBoss.Extensions
             IEqualityComparer<TSource> comparer = default)
         {
             if (items.IsNullOrEmpty()) return source;
-            if (source.IsNullOrEmpty()) source = new List<TSource>(items?.Count() ?? 0);
+
+            // Mutate in place only when the source is a writable list (previous behaviour);
+            // otherwise (arrays, LINQ results, null) copy into a new list.
+            IList<TSource> result = source is IList<TSource> { IsReadOnly: false } list
+                ? list
+                : new List<TSource>(source ?? Enumerable.Empty<TSource>());
 
             foreach (var item in items)
             {
-                if (!source.Contains(item, comparer))
+                if (!result.Contains(item, comparer))
                 {
-                    ((IList<TSource>)source).Add(item);
+                    result.Add(item);
                 }
             }
-            return source;
+            return result;
         }
 
 

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <Description>Entity Framework Core implementation of CodeBoss.Jobs' IServiceJobRepository.</Description>
+        <Authors>CodeBoss.co</Authors>
+        <TargetFramework>net10.0</TargetFramework>
+        <LangVersion>Latest</LangVersion>
+        <Nullable>enable</Nullable>
+        <AssemblyName>CodeBoss.Jobs.EntityFrameworkCore</AssemblyName>
+        <Title>CodeBoss.Jobs.EntityFrameworkCore</Title>
+        <PackageId>CodeBoss.Jobs.EntityFrameworkCore</PackageId>
+        <PackageTags>CodeBoss.Jobs;EntityFrameworkCore</PackageTags>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Relational"/>
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\..\..\CodeBoss.Jobs\src\CodeBoss.Jobs\CodeBoss.Jobs.csproj"/>
+    </ItemGroup>
+</Project>

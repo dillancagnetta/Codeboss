@@ -1,4 +1,5 @@
 using Codeboss.Types;
+using CodeBoss.Extensions;
 using CodeBoss.Logging.Options;
 using CodeBoss.Logging.Services;
 using Microsoft.Extensions.Configuration;
@@ -26,8 +27,8 @@ public static class HostBuilderExtensions
                 services.AddSingleton<ILoggingService>(new LoggingService(levelSwitch)))
             .UseSerilog((context, loggerConfig) =>
             {
-                var loggerOptions = BindOptions<LoggerOptions>(context.Configuration, loggerSectionName);
-                var appOptions = BindOptions<AppOptions>(context.Configuration, appSectionName);
+                var loggerOptions = context.Configuration.GetOptions<LoggerOptions>(loggerSectionName);
+                var appOptions = context.Configuration.GetOptions<AppOptions>(appSectionName);
 
                 levelSwitch.MinimumLevel = LoggingService.GetLogEventLevel(loggerOptions.Level);
 
@@ -73,12 +74,5 @@ public static class HostBuilderExtensions
 
                 configure?.Invoke(context, loggerConfig);
             });
-    }
-
-    private static T BindOptions<T>(IConfiguration configuration, string sectionName) where T : class, new()
-    {
-        var options = new T();
-        configuration.GetSection(sectionName).Bind(options);
-        return options;
     }
 }

@@ -38,6 +38,7 @@ namespace CodeBoss.Extensions
         /// <typeparam name="TKey">Type of the key</typeparam>
         /// <typeparam name="TValue">Type of the value</typeparam>
         /// <returns>Value if found, default if can not found.</returns>
+        [Obsolete("Use the built-in GetValueOrDefault (System.Collections.Generic.CollectionExtensions) instead. This method will be removed in the next major version.")]
         public static TValue GetOrDefault<TKey, TValue>(this Dictionary<TKey, TValue> dictionary, TKey key)
         {
             TValue obj;
@@ -65,6 +66,7 @@ namespace CodeBoss.Extensions
         /// <typeparam name="TKey">Type of the key</typeparam>
         /// <typeparam name="TValue">Type of the value</typeparam>
         /// <returns>Value if found, default if can not found.</returns>
+        [Obsolete("Use the built-in GetValueOrDefault (System.Collections.Generic.CollectionExtensions) instead. This method will be removed in the next major version.")]
         public static TValue GetOrDefault<TKey, TValue>(this IReadOnlyDictionary<TKey, TValue> dictionary, TKey key)
         {
             return dictionary.TryGetValue(key, out var obj) ? obj : default;
@@ -78,6 +80,7 @@ namespace CodeBoss.Extensions
         /// <typeparam name="TKey">Type of the key</typeparam>
         /// <typeparam name="TValue">Type of the value</typeparam>
         /// <returns>Value if found, default if can not found.</returns>
+        [Obsolete("Use the built-in GetValueOrDefault (System.Collections.Generic.CollectionExtensions) instead. This method will be removed in the next major version.")]
         public static TValue GetOrDefault<TKey, TValue>(this ConcurrentDictionary<TKey, TValue> dictionary, TKey key)
         {
             return dictionary.TryGetValue(key, out var obj) ? obj : default;

@@ -88,7 +88,7 @@ public class MultiTenantJobPulseAdvancedTests : IAsyncDisposable
         job.CronExpression = "0 */15 * * * ?";
 
         _mockTenantsProvider.Setup(p => p.Tenants()).Returns(new[] { tenant });
-        _mockRepository.Setup(r => r.GetActiveJobsAsync(1, It.IsAny<CancellationToken>()))
+        _mockRepository.Setup(r => r.GetActiveJobsAsync((int?)1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { job });
 
         await CreatePulse().Execute(CancellationToken.None);
@@ -116,7 +116,7 @@ public class MultiTenantJobPulseAdvancedTests : IAsyncDisposable
         job.Class = "CodeBoss.Jobs.Tests.TestJob2";
 
         _mockTenantsProvider.Setup(p => p.Tenants()).Returns(new[] { tenant });
-        _mockRepository.Setup(r => r.GetActiveJobsAsync(1, It.IsAny<CancellationToken>()))
+        _mockRepository.Setup(r => r.GetActiveJobsAsync((int?)1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { job });
 
         await CreatePulse().Execute(CancellationToken.None);
@@ -137,7 +137,7 @@ public class MultiTenantJobPulseAdvancedTests : IAsyncDisposable
         var job = MakeJob(1, 1, ServiceJob.NeverScheduledCronExpression);
 
         _mockTenantsProvider.Setup(p => p.Tenants()).Returns(new[] { tenant });
-        _mockRepository.Setup(r => r.GetActiveJobsAsync(1, It.IsAny<CancellationToken>()))
+        _mockRepository.Setup(r => r.GetActiveJobsAsync((int?)1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { job });
 
         await CreatePulse().Execute(CancellationToken.None);
@@ -146,19 +146,75 @@ public class MultiTenantJobPulseAdvancedTests : IAsyncDisposable
         Assert.Empty(keys);
     }
 
-    // ── Error path: unresolvable job type propagates as JobExecutionException ─
+    // ── Error path: an unresolvable job type is recorded, not fatal ───────────
 
     [Fact]
-    public async Task FailedScheduleOp_UnresolvableType_ThrowsJobExecutionException()
+    public async Task FailedScheduleOp_UnresolvableType_RecordsErrorWithoutThrowing()
     {
         var tenant = MakeTenant(1);
         var job = MakeJob(1, 1, cls: "No.Such.Class", assembly: "FakeAssembly");
 
         _mockTenantsProvider.Setup(p => p.Tenants()).Returns(new[] { tenant });
-        _mockRepository.Setup(r => r.GetActiveJobsAsync(1, It.IsAny<CancellationToken>()))
+        _mockRepository.Setup(r => r.GetActiveJobsAsync((int?)1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { job });
 
-        await Assert.ThrowsAsync<JobExecutionException>(() => CreatePulse().Execute(CancellationToken.None));
+        await CreatePulse().Execute(CancellationToken.None);
+
+        _mockRepository.Verify(r => r.SetStatusAsync(
+            new JobRef(job.Id, 1),
+            JobRunStatus.SchedulingError,
+            It.Is<string>(msg => msg.Contains(job.Name)),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Regression: <c>OperationResult&lt;T&gt;.Fail(string)</c> leaves <c>Result</c> null, so the
+    /// result-collection block dereferenced null on every failed operation. That faulted the
+    /// dataflow pipeline and aborted the sync cycle for EVERY tenant — one bad class name stopped
+    /// all scheduling everywhere.
+    /// </summary>
+    [Fact]
+    public async Task FailedScheduleOp_ForOneTenant_DoesNotStopOtherTenants()
+    {
+        var badJob = MakeJob(1, 1, cls: "No.Such.Class", assembly: "FakeAssembly");
+        var goodJob = MakeJob(2, 2);
+
+        _mockTenantsProvider.Setup(p => p.Tenants()).Returns(new[] { MakeTenant(1), MakeTenant(2) });
+        _mockRepository.Setup(r => r.GetActiveJobsAsync((int?)1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { badJob });
+        _mockRepository.Setup(r => r.GetActiveJobsAsync(2, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { goodJob });
+
+        await CreatePulse().Execute(CancellationToken.None);
+
+        var tenant1Keys = await _scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(JobGroups.ForTenant(1)));
+        var tenant2Keys = await _scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(JobGroups.ForTenant(2)));
+
+        Assert.Empty(tenant1Keys);
+        Assert.Single(tenant2Keys);
+    }
+
+    [Fact]
+    public async Task FailedScheduleOp_StatusFitsTheStatusColumn()
+    {
+        var tenant = MakeTenant(1);
+        var job = MakeJob(1, 1, cls: "No.Such.Class", assembly: "FakeAssembly");
+
+        _mockTenantsProvider.Setup(p => p.Tenants()).Returns(new[] { tenant });
+        _mockRepository.Setup(r => r.GetActiveJobsAsync((int?)1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { job });
+
+        JobRunStatus? capturedStatus = null;
+        _mockRepository
+            .Setup(r => r.SetStatusAsync(It.IsAny<JobRef>(), It.IsAny<JobRunStatus>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback<JobRef, JobRunStatus, string, CancellationToken>((_, status, _, _) => capturedStatus = status)
+            .Returns(Task.CompletedTask);
+
+        await CreatePulse().Execute(CancellationToken.None);
+
+        Assert.NotNull(capturedStatus);
+        var text = capturedStatus.ToString();
+        Assert.True(text.Length <= 50, $"LastStatus is MaxLength(50) but got {text.Length} chars: '{text}'");
     }
 
     // ── Previous error status cleared on success ─────────────────────────────
@@ -168,7 +224,7 @@ public class MultiTenantJobPulseAdvancedTests : IAsyncDisposable
     {
         var tenant = MakeTenant(1);
         var job = MakeJob(1, 1, "0 0 12 * * ?");
-        job.LastStatus = "Error scheduling Job";
+        job.LastStatus = nameof(JobRunStatus.SchedulingError);
 
         var detail = _service.BuildQuartzJob(job, 1);
         var trigger = _service.BuildJobTrigger(job, 1);
@@ -177,14 +233,13 @@ public class MultiTenantJobPulseAdvancedTests : IAsyncDisposable
         job.CronExpression = "0 */20 * * * ?";
 
         _mockTenantsProvider.Setup(p => p.Tenants()).Returns(new[] { tenant });
-        _mockRepository.Setup(r => r.GetActiveJobsAsync(1, It.IsAny<CancellationToken>()))
+        _mockRepository.Setup(r => r.GetActiveJobsAsync((int?)1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { job });
 
         await CreatePulse().Execute(CancellationToken.None);
 
-        _mockRepository.Verify(r => r.ClearStatusesAsync(
-            job,
-            (int?)1,
+        _mockRepository.Verify(r => r.ClearStatusAsync(
+            new JobRef(job.Id, 1),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -195,7 +250,7 @@ public class MultiTenantJobPulseAdvancedTests : IAsyncDisposable
     {
         var tenant = MakeTenant(1);
         _mockTenantsProvider.Setup(p => p.Tenants()).Returns(new[] { tenant });
-        _mockRepository.Setup(r => r.GetActiveJobsAsync(1, It.IsAny<CancellationToken>()))
+        _mockRepository.Setup(r => r.GetActiveJobsAsync((int?)1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { MakeJob(1, 1) });
 
         using var cts = new CancellationTokenSource();
@@ -215,7 +270,7 @@ public class MultiTenantJobPulseAdvancedTests : IAsyncDisposable
         var jobs = Enumerable.Range(1, 5).Select(i => MakeJob(i, 1)).ToList();
 
         _mockTenantsProvider.Setup(p => p.Tenants()).Returns(new[] { tenant });
-        _mockRepository.Setup(r => r.GetActiveJobsAsync(1, It.IsAny<CancellationToken>()))
+        _mockRepository.Setup(r => r.GetActiveJobsAsync((int?)1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(jobs);
 
         var pulse = CreatePulse(opts);
@@ -234,7 +289,7 @@ public class MultiTenantJobPulseAdvancedTests : IAsyncDisposable
         var jobs = Enumerable.Range(1, 3).Select(i => MakeJob(i, 1)).ToList();
 
         _mockTenantsProvider.Setup(p => p.Tenants()).Returns(new[] { tenant });
-        _mockRepository.Setup(r => r.GetActiveJobsAsync(1, It.IsAny<CancellationToken>()))
+        _mockRepository.Setup(r => r.GetActiveJobsAsync((int?)1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(jobs);
 
         var pulse = CreatePulse();

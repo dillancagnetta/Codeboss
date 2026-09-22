@@ -166,6 +166,20 @@ public class DateTimeExtensionsTests
     }
 
     [Fact]
+    public void Age_NullableWithValue_ComputesAgainstToday()
+    {
+        DateTime? birth = DateTime.Today.AddYears(-30).AddDays(-1);
+        Assert.Equal(30, birth.Age());
+    }
+
+    [Fact]
+    public void Age_BirthdayNotYetPassedThisYear_SubtractsOne()
+    {
+        var birth = DateTime.Today.AddYears(-30).AddDays(1);
+        Assert.Equal(29, birth.Age());
+    }
+
+    [Fact]
     public void GetDifferenceInYears_Computes()
     {
         var start = new DateTime(2000, 1, 1);

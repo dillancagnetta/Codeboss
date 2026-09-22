@@ -9,7 +9,7 @@ using CodeBoss.Extensions;
 using CodeBoss.Jobs.Abstractions;
 using CodeBoss.Jobs.Model;
 using CodeBoss.MultiTenant;
-using Codeboss.Results;
+
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz;
@@ -127,7 +127,7 @@ public class MultiTenantJobPulse(
             });
 
         // Step 3: Execute scheduler operations
-        var operationExecutionBlock = new TransformBlock<JobOperation, OperationResult<JobOperation>>(
+        var operationExecutionBlock = new TransformBlock<JobOperation, JobOperationOutcome>(
             async operation =>
             {
                 await _schedulerSemaphore.WaitAsync(ct);
@@ -148,33 +148,35 @@ public class MultiTenantJobPulse(
             });
 
         // Step 4: Collect results and update status
-        var resultCollectionBlock = new ActionBlock<OperationResult<JobOperation>>(
-            async opResult =>
+        var resultCollectionBlock = new ActionBlock<JobOperationOutcome>(
+            async outcome =>
             {
+                var operation = outcome.Operation;
+
                 // Update metrics
                 lock (metrics)
                 {
-                    switch (opResult.Result.Type)
+                    switch (operation.Type)
                     {
-                        case OperationType.Delete when opResult.IsSuccess:
+                        case OperationType.Delete when outcome.IsSuccess:
                             metrics.TotalJobsDeleted++;
                             break;
-                        case OperationType.Schedule when opResult.IsSuccess:
-                        case OperationType.Reschedule when opResult.IsSuccess:
+                        case OperationType.Schedule when outcome.IsSuccess:
+                        case OperationType.Reschedule when outcome.IsSuccess:
                             metrics.TotalJobsScheduleUpdated++;
                             break;
                     }
 
-                    var tenantResult = tenantResults.FirstOrDefault(r => r.TenantId == opResult.Result.TenantId);
+                    var tenantResult = tenantResults.FirstOrDefault(r => r.TenantId == operation.TenantId);
                     if (tenantResult == null)
                     {
-                        tenantResult = new TenantSyncResult { TenantId = opResult.Result.TenantId };
+                        tenantResult = new TenantSyncResult { TenantId = operation.TenantId };
                         tenantResults.Add(tenantResult);
                     }
 
-                    if (opResult.IsSuccess)
+                    if (outcome.IsSuccess)
                     {
-                        switch (opResult.Result.Type)
+                        switch (operation.Type)
                         {
                             case OperationType.Delete:
                                 tenantResult.Deleted++;
@@ -188,14 +190,17 @@ public class MultiTenantJobPulse(
                 }
 
                 // Handle errors by updating job status in database
-                if (!opResult.IsSuccess && opResult.Result.ServiceJob != null)
+                if (!outcome.IsSuccess && operation.ServiceJob != null)
                 {
                     await _dbSemaphore.WaitAsync(ct);
                     try
                     {
-                        var errorMessage = opResult.Errors.FirstOrDefault()?.Message ?? "Unknown error";
-                        await HandleAndLogError(opResult.Result.ServiceJob, errorMessage, 
-                            new Exception(errorMessage), opResult.Result.TenantId, ct);
+                        var errorStatus = operation.Type == OperationType.Reschedule
+                            ? JobStatusText.ErrorRescheduling
+                            : JobStatusText.ErrorScheduling;
+
+                        await HandleAndLogError(operation.ServiceJob, errorStatus,
+                            outcome.ErrorMessage ?? "Unknown error", operation.TenantId, ct);
                     }
                     finally
                     {
@@ -204,13 +209,13 @@ public class MultiTenantJobPulse(
                 }
 
                 // Clear error status for successful operations
-                if (opResult.IsSuccess && opResult.Result.ServiceJob != null && 
-                    (opResult.Result.ServiceJob.LastStatus?.Contains("Error") == true))
+                if (outcome.IsSuccess && operation.ServiceJob != null &&
+                    operation.ServiceJob.LastRunStatus == JobRunStatus.SchedulingError)
                 {
                     await _dbSemaphore.WaitAsync(ct);
                     try
                     {
-                        await Repository.ClearStatusesAsync(opResult.Result.ServiceJob, opResult.Result.TenantId, ct);
+                        await Repository.ClearStatusAsync(new JobRef(operation.ServiceJob.Id, operation.TenantId), ct);
                     }
                     finally
                     {
@@ -261,9 +266,9 @@ public class MultiTenantJobPulse(
             Logger.LogInformation("Getting active jobs for tenant: [{0}], Jobs: [{1}]", tenantId, activeJobs.Count);
 
             // Get scheduled jobs for this tenant
-            var groupName = $"tenant_{tenantId}";
+            var groupName = JobGroups.ForTenant(tenantId);
             var scheduledQuartzJobs = (await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(groupName), ct))
-                .Where(jobKey => jobKey.Group != "System").ToList();
+                .Where(jobKey => jobKey.Group != JobGroups.System).ToList();
 
             // Identify jobs to delete
             syncBatch.JobsToDelete = scheduledQuartzJobs.Where(jobKey => 
@@ -308,7 +313,7 @@ public class MultiTenantJobPulse(
             {
                 // Check if job type changed
                 IJobDetail scheduledJobDetail = await scheduler.GetJobDetail(jobKey, ct);
-                var activeJobType = activeJob.GetCompiledType();
+                var activeJobType = service.ResolveJobType(activeJob);
 
                 if (scheduledJobDetail != null && activeJobType != null)
                 {
@@ -333,7 +338,7 @@ public class MultiTenantJobPulse(
         }
     }
 
-    private async Task<OperationResult<JobOperation>> ExecuteOperationAsync(JobOperation operation, CancellationToken ct)
+    private async Task<JobOperationOutcome> ExecuteOperationAsync(JobOperation operation, CancellationToken ct)
     {
         try
         {
@@ -343,79 +348,76 @@ public class MultiTenantJobPulse(
             {
                 case OperationType.Delete:
                     await scheduler.DeleteJob(operation.JobKey, ct);
-                    return OperationResult<JobOperation>.Success(operation);
+                    return JobOperationOutcome.Success(operation);
 
                 case OperationType.Schedule:
-                    try
+                {
+                    IJobDetail jobDetail = service.BuildQuartzJob(operation.ServiceJob, operation.TenantId);
+                    if (jobDetail == null)
                     {
-                        IJobDetail jobDetail = service.BuildQuartzJob(operation.ServiceJob, operation.TenantId);
-                        if (jobDetail == null)
-                        {
-                            return OperationResult<JobOperation>.Fail("Failed to build job detail");
-                        }
+                        return JobOperationOutcome.Failure(operation, UnresolvableTypeMessage(operation.ServiceJob));
+                    }
 
-                        ITrigger jobTrigger = service.BuildJobTrigger(operation.ServiceJob, operation.TenantId);
-                        
-                        if (operation.ServiceJob.CronExpression != ServiceJob.NeverScheduledCronExpression)
-                        {
-                            await scheduler.ScheduleJob(jobDetail, jobTrigger, ct);
-                        }
-                        return OperationResult<JobOperation>.Success(operation);
-                    }
-                    catch (Exception ex)
+                    ITrigger jobTrigger = service.BuildJobTrigger(operation.ServiceJob, operation.TenantId);
+
+                    if (operation.ServiceJob.CronExpression != ServiceJob.NeverScheduledCronExpression)
                     {
-                        Logger.LogError(ex, "Error executing operation: {OperationType} for tenant: {TenantId}", operation.Type, operation.TenantId);
-                        return OperationResult<JobOperation>.Fail(ex.Message);
+                        await scheduler.ScheduleJob(jobDetail, jobTrigger, ct);
                     }
+
+                    return JobOperationOutcome.Success(operation);
+                }
 
                 case OperationType.Reschedule:
-                    try
-                    {
-                        ITrigger newJobTrigger = service.BuildJobTrigger(operation.ServiceJob, operation.TenantId);
+                {
+                    ITrigger newJobTrigger = service.BuildJobTrigger(operation.ServiceJob, operation.TenantId);
 
-                        if (operation.JobTypeChanged)
-                        {
-                            // job class changed: replace job detail + trigger
-                            IJobDetail newJobDetail = service.BuildQuartzJob(operation.ServiceJob, operation.TenantId);
-                            await scheduler.DeleteJob(operation.JobKey, ct);
-                            if (newJobDetail != null)
-                            {
-                                await scheduler.ScheduleJob(newJobDetail, newJobTrigger, ct);
-                            }
-                        }
-                        else if (operation.CronTriggerKey != null)
-                        {
-                            // cron-only change: atomic trigger swap
-                            await scheduler.RescheduleJob(operation.CronTriggerKey, newJobTrigger, ct);
-                        }
-                        else
-                        {
-                            // fallback: no captured trigger key, schedule fresh
-                            IJobDetail jobDetail = service.BuildQuartzJob(operation.ServiceJob, operation.TenantId);
-                            await scheduler.DeleteJob(operation.JobKey, ct);
-                            if (jobDetail != null)
-                            {
-                                await scheduler.ScheduleJob(jobDetail, newJobTrigger, ct);
-                            }
-                        }
-                        return OperationResult<JobOperation>.Success(operation);
-                    }
-                    catch (Exception ex)
+                    if (operation.JobTypeChanged)
                     {
-                        Logger.LogError(ex, "Error executing operation: {OperationType} for tenant: {TenantId}", operation.Type, operation.TenantId);
-                        return OperationResult<JobOperation>.Fail(ex.Message);
+                        // job class changed: replace job detail + trigger
+                        IJobDetail newJobDetail = service.BuildQuartzJob(operation.ServiceJob, operation.TenantId);
+                        await scheduler.DeleteJob(operation.JobKey, ct);
+                        if (newJobDetail == null)
+                        {
+                            return JobOperationOutcome.Failure(operation, UnresolvableTypeMessage(operation.ServiceJob));
+                        }
+
+                        await scheduler.ScheduleJob(newJobDetail, newJobTrigger, ct);
                     }
+                    else if (operation.CronTriggerKey != null)
+                    {
+                        // cron-only change: atomic trigger swap
+                        await scheduler.RescheduleJob(operation.CronTriggerKey, newJobTrigger, ct);
+                    }
+                    else
+                    {
+                        // fallback: no captured trigger key, schedule fresh
+                        IJobDetail jobDetail = service.BuildQuartzJob(operation.ServiceJob, operation.TenantId);
+                        await scheduler.DeleteJob(operation.JobKey, ct);
+                        if (jobDetail == null)
+                        {
+                            return JobOperationOutcome.Failure(operation, UnresolvableTypeMessage(operation.ServiceJob));
+                        }
+
+                        await scheduler.ScheduleJob(jobDetail, newJobTrigger, ct);
+                    }
+
+                    return JobOperationOutcome.Success(operation);
+                }
 
                 default:
-                    return OperationResult<JobOperation>.Fail("Unknown operation type");
+                    return JobOperationOutcome.Failure(operation, $"Unknown operation type '{operation.Type}'");
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error executing operation: {OperationType} for tenant: {TenantId}", operation.Type, operation.TenantId);
-            return OperationResult<JobOperation>.Fail(ex.Message);
+            return JobOperationOutcome.Failure(operation, ex.Message);
         }
     }
+
+    private static string UnresolvableTypeMessage(ServiceJob job) =>
+        $"Job type '{job?.Class}, {job?.Assembly}' could not be loaded.";
 
     private void BuildAndLogResult(int totalJobsDeleted, int totalJobsScheduleUpdated, List<TenantSyncResult> tenantResults)
     {
@@ -443,12 +445,48 @@ public class MultiTenantJobPulse(
         Logger.LogInformation(Result);
     }
 
-    private async Task HandleAndLogError(ServiceJob job, string errorStatus, Exception ex, int? tenantId, CancellationToken ct)
+    /// <summary>
+    /// Records a scheduling failure. <paramref name="errorStatus"/> must be one of the short
+    /// <see cref="JobStatusText"/> constants — it is written to <c>LastStatus</c>, a 50-character
+    /// column. The variable-length <paramref name="errorMessage"/> goes to <c>LastStatusMessage</c>.
+    /// </summary>
+    private async Task HandleAndLogError(ServiceJob job, string errorStatus, string errorMessage, int? tenantId, CancellationToken ct)
     {
-        Logger.LogError(ex, "Error scheduling job {JobName} for tenant {TenantId}", job.Name, tenantId);
-        string message = $"Error scheduling the job: {job.Name}.\n\n{ex.Message}";
-        await Repository.UpdateStatusMessagesAsync(job.Id, tenantId, message, errorStatus, ct);
+        Logger.LogError("Error scheduling job {JobName} for tenant {TenantId}: {Error}", job.Name, tenantId, errorMessage);
+        string message = $"Error scheduling the job: {job.Name}.\n\n{errorMessage}";
+        await Repository.SetStatusAsync(new JobRef(job.Id, tenantId), JobRunStatus.SchedulingError, message, ct);
     }
+}
+
+/// <summary>
+/// Result of a single scheduler operation. Unlike <c>OperationResult&lt;T&gt;</c>, whose
+/// <c>Fail(string)</c> factory leaves <c>Result</c> null, this type ALWAYS carries the operation it
+/// describes. That matters: the result-collection block reads <c>Operation.Type</c> and
+/// <c>Operation.TenantId</c> for every outcome, so a null payload on the failure path used to throw
+/// a <see cref="NullReferenceException"/> inside the dataflow block, faulting the pipeline and
+/// aborting the sync cycle for EVERY tenant — one job with a bad class name stopped all scheduling.
+/// </summary>
+public sealed class JobOperationOutcome
+{
+    private JobOperationOutcome(JobOperation operation, bool isSuccess, string errorMessage)
+    {
+        Operation = operation;
+        IsSuccess = isSuccess;
+        ErrorMessage = errorMessage;
+    }
+
+    /// <summary>The operation this outcome describes. Never null.</summary>
+    public JobOperation Operation { get; }
+
+    public bool IsSuccess { get; }
+
+    /// <summary>Failure detail. Null when <see cref="IsSuccess"/>.</summary>
+    public string ErrorMessage { get; }
+
+    public static JobOperationOutcome Success(JobOperation operation) => new(operation, true, null);
+
+    public static JobOperationOutcome Failure(JobOperation operation, string errorMessage) =>
+        new(operation, false, errorMessage);
 }
 
 // Supporting classes for the dataflow pipeline

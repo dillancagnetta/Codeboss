@@ -28,8 +28,13 @@ jobs:
           dotnet-version: '10.0.x' # SDK Version to use; x will use the latest version of the channel
       - run: dotnet build -c release
 
-      - name: Run tests
-        run: dotnet test -c release --no-build --verbosity normal
+      - name: Run unit tests
+        run: dotnet test -c release --no-build --verbosity normal --filter "FullyQualifiedName!~IntegrationTests"
+
+      # Separate step so the unit results above always report even if Docker is unavailable.
+      # Needs a Docker daemon (ubuntu-latest has one) for the Testcontainers PostgreSQL fixture.
+      - name: Run integration tests
+        run: dotnet test tests/CodeBoss.Jobs.IntegrationTests/CodeBoss.Jobs.IntegrationTests.csproj -c release --no-build --verbosity normal
 
       # Runs a single command using the runners shell
       - name: Run pack.sh script

@@ -14,9 +14,26 @@ namespace CodeBoss.Extensions
         public static int Age(this DateTime? start)
         {
             if(start.HasValue)
-                return start.Age();
+                return start.Value.Age();
 
             return 0;
+        }
+
+        /// <summary>
+        /// Returns the age at the current date.
+        /// </summary>
+        /// <param name="start"></param>
+        /// <returns></returns>
+        public static int Age(this DateTime start)
+        {
+            var now = DateTime.Today;
+            int age = now.Year - start.Year;
+            if(start > now.AddYears(-age))
+            {
+                age--;
+            }
+
+            return age;
         }
 
         /// <summary>
@@ -490,6 +507,24 @@ namespace CodeBoss.Extensions
             return DateTime.UtcNow.Add(timespan).ToString("h:mm tt", System.Globalization.CultureInfo.InvariantCulture);
         }
 
-        #endregion TimeSpan Extensions
+        #endregion TimeSpan
+
+        #region TimeOnly Extensions
+        
+        /// <summary>
+        /// Returns a TimeSpan as h:mm AM/PM (culture invariant)
+        /// Examples: 1:45 PM, 12:01 AM
+        /// </summary>
+        /// <param name="time">The timespan.</param>
+        /// <param name="dateTimeProvider"></param>
+        /// <returns></returns>
+        public static string ToTimeUtcString(this TimeOnly? time, IDateTimeProvider? dateTimeProvider)
+        {
+            var now = dateTimeProvider?.Now ?? DateTime.UtcNow;
+            // since the comments on this say HH:MM AM/PM, make sure to return the time in that format
+            return now.Add(time?.ToTimeSpan() ?? new TimeSpan(0)).ToString("h:mm tt", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        #endregion
     }
 }
