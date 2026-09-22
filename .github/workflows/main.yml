@@ -33,8 +33,13 @@ jobs:
 
       # Separate step so the unit results above always report even if Docker is unavailable.
       # Needs a Docker daemon (ubuntu-latest has one) for the Testcontainers PostgreSQL fixture.
+      #
+      # Selected by FILTER against the solution, mirroring the unit step above, rather than by
+      # passing the test project path. The project-path form failed on the runner with "The
+      # argument <dll> is invalid" while passing locally; the filter form names no test
+      # container and is the same invocation shape the unit step already proves works.
       - name: Run integration tests
-        run: dotnet test tests/CodeBoss.Jobs.IntegrationTests/CodeBoss.Jobs.IntegrationTests.csproj -c release --no-build --verbosity normal
+        run: dotnet test -c release --no-build --verbosity normal --filter "FullyQualifiedName~IntegrationTests"
 
       # Runs a single command using the runners shell
       - name: Run pack.sh script
