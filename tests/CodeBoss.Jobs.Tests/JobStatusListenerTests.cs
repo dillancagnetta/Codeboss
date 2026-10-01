@@ -178,6 +178,36 @@ public class JobStatusListenerTests
     }
 
     [Fact]
+    public async Task RunTimestamps_AreUtc_EvenWithANonUtcClockRegistered()
+    {
+        // UTC+2 with no DST: a clock whose Now is local time must not leak into the UTC fields.
+        var host = BuildHost(typeof(SucceedingJob), s => s.AddSingleton<IDateTimeProvider>(
+            new CodeBossDateTimeProvider(
+                Options.Create(new DateTimeOptions { TimeZone = "South Africa Standard Time" }),
+                new NullLogger<CodeBossDateTimeProvider>())));
+        await using var _ = host.Provider;
+        var scheduler = await StartAsync(host);
+
+        try
+        {
+            Assert.True(await WaitAsync(host.Repository.CompletedSignal.Task), "No completion was recorded.");
+
+            var started = Assert.Single(host.Repository.Started);
+            Assert.True(host.Repository.Completed.TryDequeue(out var completed));
+
+            foreach (var stamp in new[] { started.StartedUtc, completed.CompletedUtc })
+            {
+                Assert.Equal(DateTimeKind.Utc, stamp.Kind);
+                Assert.InRange((DateTime.UtcNow - stamp).Duration(), TimeSpan.Zero, TimeSpan.FromSeconds(30));
+            }
+        }
+        finally
+        {
+            await scheduler.Shutdown(false);
+        }
+    }
+
+    [Fact]
     public async Task FailingJob_RecordsFailedWithTheUnwrappedCause()
     {
         var host = BuildHost(typeof(FailingJob));

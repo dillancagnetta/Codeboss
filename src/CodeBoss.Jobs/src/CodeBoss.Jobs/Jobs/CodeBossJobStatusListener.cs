@@ -52,7 +52,7 @@ public class CodeBossJobStatusListener(
                 context.FireInstanceId,
                 context.Scheduler?.SchedulerInstanceId,
                 context.GetAttempt(),
-                UtcNow(scope.ServiceProvider));
+                UtcNow());
 
             await scope.ServiceProvider.GetRequiredService<IServiceJobRepository>()
                 .MarkRunStartedAsync(started, ct);
@@ -217,7 +217,7 @@ public class CodeBossJobStatusListener(
         await using var scope = scopeFactory.CreateAsyncScope();
 
         var run = new JobRunCompleted(job, context.FireInstanceId, context.GetAttempt(),
-            status, message, duration, UtcNow(scope.ServiceProvider), cause);
+            status, message, duration, UtcNow(), cause);
 
         try
         {
@@ -244,12 +244,9 @@ public class CodeBossJobStatusListener(
     }
 
     /// <summary>
-    /// Uses the consumer's clock when one is registered, so tests and non-UTC deployments stay
-    /// consistent with the timestamps jobs write themselves.
+    /// Run timestamps are UTC, full stop. Deliberately NOT <see cref="IDateTimeProvider"/>:
+    /// its <c>Now</c> is local time in the configured zone, and stamping that as UTC stored every
+    /// run hours off in any non-UTC deployment.
     /// </summary>
-    private static DateTime UtcNow(IServiceProvider provider)
-    {
-        var now = provider.GetService<IDateTimeProvider>()?.Now ?? DateTime.UtcNow;
-        return DateTime.SpecifyKind(now, DateTimeKind.Utc);
-    }
+    private static DateTime UtcNow() => DateTime.UtcNow;
 }
