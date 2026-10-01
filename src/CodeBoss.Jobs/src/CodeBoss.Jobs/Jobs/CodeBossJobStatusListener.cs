@@ -52,7 +52,7 @@ public class CodeBossJobStatusListener(
                 context.FireInstanceId,
                 context.Scheduler?.SchedulerInstanceId,
                 context.GetAttempt(),
-                UtcNow(scope.ServiceProvider));
+                UtcNow());
 
             await scope.ServiceProvider.GetRequiredService<IServiceJobRepository>()
                 .MarkRunStartedAsync(started, ct);
@@ -110,13 +110,22 @@ public class CodeBossJobStatusListener(
         }
         else
         {
-            logger.LogError(cause, "{Job} ({JobKey}) failed with {Status}.", job, context.JobDetail.Key, status);
-
+            // Log AFTER the retry decision: a failure that will be retried is a Warning recorded as
+            // Retrying, and only a run's final failure is an Error.
             var retry = await TryScheduleRetryAsync(context, job, ct);
             if (retry is not null)
             {
                 status = JobRunStatus.Retrying;
                 message = $"{message} — retry {retry.Value.Attempt} scheduled in {retry.Value.Delay.TotalSeconds:F0}s";
+
+                logger.LogWarning(cause,
+                    "{Job} ({JobKey}) failed on attempt {Attempt}; retry {NextAttempt} scheduled in {Delay}.",
+                    job, context.JobDetail.Key, context.GetAttempt(), retry.Value.Attempt, retry.Value.Delay);
+            }
+            else
+            {
+                logger.LogError(cause, "{Job} ({JobKey}) failed with {Status} on attempt {Attempt}.",
+                    job, context.JobDetail.Key, status, context.GetAttempt());
             }
         }
 
@@ -174,10 +183,6 @@ public class CodeBossJobStatusListener(
 
             await context.Scheduler.ScheduleJob(trigger, ct);
 
-            logger.LogInformation(
-                "{Job} ({JobKey}) failed on attempt {Attempt} of {Max}; retrying in {Delay}.",
-                job, jobKey, failedAttempt, definition.MaxRetries + 1, delay);
-
             return (nextAttempt, delay);
         }
         catch (Exception ex)
@@ -212,7 +217,7 @@ public class CodeBossJobStatusListener(
         await using var scope = scopeFactory.CreateAsyncScope();
 
         var run = new JobRunCompleted(job, context.FireInstanceId, context.GetAttempt(),
-            status, message, duration, UtcNow(scope.ServiceProvider), cause);
+            status, message, duration, UtcNow(), cause);
 
         try
         {
@@ -239,12 +244,9 @@ public class CodeBossJobStatusListener(
     }
 
     /// <summary>
-    /// Uses the consumer's clock when one is registered, so tests and non-UTC deployments stay
-    /// consistent with the timestamps jobs write themselves.
+    /// Run timestamps are UTC, full stop. Deliberately NOT <see cref="IDateTimeProvider"/>:
+    /// its <c>Now</c> is local time in the configured zone, and stamping that as UTC stored every
+    /// run hours off in any non-UTC deployment.
     /// </summary>
-    private static DateTime UtcNow(IServiceProvider provider)
-    {
-        var now = provider.GetService<IDateTimeProvider>()?.Now ?? DateTime.UtcNow;
-        return DateTime.SpecifyKind(now, DateTimeKind.Utc);
-    }
+    private static DateTime UtcNow() => DateTime.UtcNow;
 }
