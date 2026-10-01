@@ -110,13 +110,22 @@ public class CodeBossJobStatusListener(
         }
         else
         {
-            logger.LogError(cause, "{Job} ({JobKey}) failed with {Status}.", job, context.JobDetail.Key, status);
-
+            // Log AFTER the retry decision: a failure that will be retried is a Warning recorded as
+            // Retrying, and only a run's final failure is an Error.
             var retry = await TryScheduleRetryAsync(context, job, ct);
             if (retry is not null)
             {
                 status = JobRunStatus.Retrying;
                 message = $"{message} — retry {retry.Value.Attempt} scheduled in {retry.Value.Delay.TotalSeconds:F0}s";
+
+                logger.LogWarning(cause,
+                    "{Job} ({JobKey}) failed on attempt {Attempt}; retry {NextAttempt} scheduled in {Delay}.",
+                    job, context.JobDetail.Key, context.GetAttempt(), retry.Value.Attempt, retry.Value.Delay);
+            }
+            else
+            {
+                logger.LogError(cause, "{Job} ({JobKey}) failed with {Status} on attempt {Attempt}.",
+                    job, context.JobDetail.Key, status, context.GetAttempt());
             }
         }
 
@@ -173,10 +182,6 @@ public class CodeBossJobStatusListener(
                 .Build();
 
             await context.Scheduler.ScheduleJob(trigger, ct);
-
-            logger.LogInformation(
-                "{Job} ({JobKey}) failed on attempt {Attempt} of {Max}; retrying in {Delay}.",
-                job, jobKey, failedAttempt, definition.MaxRetries + 1, delay);
 
             return (nextAttempt, delay);
         }

@@ -155,7 +155,8 @@ public class RetryAndTimeoutTests
 
     private sealed record Host(ServiceProvider Provider, Tracker Tracker);
 
-    private static Host BuildHost(Type jobType, Action<ServiceJob> configureJob = null)
+    private static Host BuildHost(Type jobType, Action<ServiceJob> configureJob = null,
+        CapturingLoggerFactory logs = null)
     {
         var job = new ServiceJob
         {
@@ -175,8 +176,17 @@ public class RetryAndTimeoutTests
         var tracker = new Tracker();
 
         var services = new ServiceCollection();
-        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
-        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
+        if (logs is null)
+        {
+            services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
+            services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
+        }
+        else
+        {
+            services.AddSingleton(logs);
+            services.AddSingleton<ILoggerFactory>(logs);
+            services.AddSingleton(typeof(ILogger<>), typeof(CapturingLogger<>));
+        }
         services.AddSingleton<IDateTimeProvider>(new CodeBossDateTimeProvider(
             Options.Create(new DateTimeOptions { TimeZone = "UTC" }),
             new NullLogger<CodeBossDateTimeProvider>()));
@@ -294,6 +304,41 @@ public class RetryAndTimeoutTests
             var statuses = host.Tracker.Completed.Select(c => c.Status).ToList();
             Assert.Equal(JobRunStatus.Retrying, statuses[0]);
             Assert.Equal(JobRunStatus.Failed, statuses[^1]);
+        }
+        finally
+        {
+            await scheduler.Shutdown(false);
+        }
+    }
+
+    [Fact]
+    public async Task RetriedFailures_LogWarnings_AndOnlyTheFinalFailureLogsAnError()
+    {
+        var logs = new CapturingLoggerFactory();
+        var host = BuildHost(typeof(FlakyJob), j =>
+        {
+            j.MaxRetries = 1;
+            j.RetryBackoffBaseSeconds = 1;
+            j.RetryBackoffMaxSeconds = 1;
+        }, logs);
+        host.Tracker.FailUntilAttempt = int.MaxValue; // always fails
+
+        await using var _ = host.Provider;
+        var scheduler = await StartAndFireAsync(host);
+
+        try
+        {
+            Assert.True(await WaitAsync(host.Tracker.Finished.Task), "The job never reached a final status.");
+
+            var listener = logs.Entries
+                .Where(e => e.Contains(typeof(CodeBossJobStatusListener).FullName!))
+                .ToList();
+
+            var warning = Assert.Single(listener, e => e.StartsWith("[Warning]"));
+            Assert.Contains("failed on attempt 1; retry 2 scheduled", warning);
+
+            var error = Assert.Single(listener, e => e.StartsWith("[Error]"));
+            Assert.Contains("failed with Failed on attempt 2", error);
         }
         finally
         {
